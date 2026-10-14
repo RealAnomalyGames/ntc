@@ -788,12 +788,19 @@ static int emit_instruction(const Instruction *ins)
 
     case OP_PRINT_TEXT:
         /* mov dx, string address; mov ah, 09h; int 21h */
-        return emit8(0xBA) &&
-               emit_address(PATCH_STRING, ins->string_index) &&
-               emit8(0xB4) &&
-               emit8(0x09) &&
-               emit8(0xCD) &&
-               emit8(0x21);
+        if (!emit8(0xBA))
+            return 0;
+        if (!emit_address(PATCH_STRING, ins->string_index))
+            return 0;
+        if (!emit8(0xB4))
+            return 0;
+        if (!emit8(0x09))
+            return 0;
+        if (!emit8(0xCD))
+            return 0;
+        if (!emit8(0x21))
+            return 0;
+        return 1;
 
     case OP_PRINT_VAR:
         return emit_variable_load(ins->destination) &&
