@@ -1,9 +1,12 @@
-; NTC Build 001 - Hello World
-PROGRAM HelloWorld
+; NTC Build 002 - Variables and Arithmetic
+PROGRAM ScoreCalculator
 
-PRINT "Hello from Neptune Code!"
-PRINT "My first NTC application."
-PRINT "Compiled into a 16-bit DOS EXE."
+LET score = 100
+ADD score, 25
+SUB score, 10
+
+PRINT "Final score:"
+PRINT score
 
 EXIT 0
 END
