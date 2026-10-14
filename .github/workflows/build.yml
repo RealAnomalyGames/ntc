@@ -23,24 +23,40 @@ jobs:
           gcc -std=c11 -O2 -Wall -Wextra -Werror \
             compiler/ntc.c -o build/ntc
 
-      - name: Compile Hello World
+      - name: Compile arithmetic example
         run: |
           ./build/ntc examples/hello.ntc build/hello.exe
 
-      - name: Verify DOS MZ executable
+      - name: Verify DOS MZ header and file size
         run: |
-          SIGNATURE="$(od -An -tx1 -N2 build/hello.exe | tr -d ' \n')"
-          if [ "$SIGNATURE" != "4d5a" ]; then
-            echo "ERROR: Output does not have an MZ signature."
-            exit 1
-          fi
-          file build/hello.exe
-          echo "DOS MZ signature verified."
+          python3 - <<'PY'
+          import os
+          import struct
 
-      - name: Upload compiler and example
+          path = "build/hello.exe"
+          data = open(path, "rb").read()
+
+          assert data[:2] == b"MZ", "Missing MZ signature"
+          assert len(data) >= 32, "Truncated MZ header"
+
+          last_page, pages = struct.unpack_from("<HH", data, 2)
+          header_paragraphs = struct.unpack_from("<H", data, 8)[0]
+          ip = struct.unpack_from("<H", data, 20)[0]
+          cs = struct.unpack_from("<H", data, 22)[0]
+
+          declared_size = (pages - 1) * 512 + last_page if last_page else pages * 512
+
+          assert declared_size == len(data), "MZ file size mismatch"
+          assert header_paragraphs * 16 == 32, "Unexpected header size"
+          assert cs == 0 and ip == 0, "Unexpected entry point"
+
+          print(f"MZ header verified: {len(data)} bytes")
+          PY
+
+      - name: Upload compiler and executable
         uses: actions/upload-artifact@v4
         with:
-          name: ntc-build-001
+          name: ntc-build-002
           path: |
             build/ntc
             build/hello.exe
