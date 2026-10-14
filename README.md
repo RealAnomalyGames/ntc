@@ -1,5 +1,7 @@
 # NTC — Neptune Code
 
+![NTC Logo](https://github.com/RealAnomalyGames/ntc/blob/main/logo/nptlogo.png)
+
 **NTC (Neptune Code)** is a general-purpose, assembly-inspired programming language developed by Neptune Corporation™.
 
 NTC aims to make low-level programming simple and approachable while allowing developers to create games, utilities, applications, and other software.
