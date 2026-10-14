@@ -1,4 +1,4 @@
-name: NTC Build 001
+name: NTC Compiler
 
 on:
   workflow_dispatch:
@@ -56,7 +56,7 @@ jobs:
       - name: Upload compiler and executable
         uses: actions/upload-artifact@v4
         with:
-          name: ntc-build-002
+          name: ntc-build-004
           path: |
             build/ntc
             build/hello.exe
