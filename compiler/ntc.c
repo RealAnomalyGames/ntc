@@ -636,13 +636,12 @@ static int emit_print_number(void)
     if (!emit8(0))
         return 0;
 
-    unsigned back = divide_loop - (code_size);
+    int back = (int)divide_loop - (int)code_size;
 
-    /* The short conditional jump uses a signed 8-bit displacement. */
-    if (back > 127)
+    if (back < -128 || back > 127)
         return 0;
 
-    code[jne_position] = (uint8_t)(int8_t)-(int)back;
+    code[jne_position] = (uint8_t)(int8_t)back;
 
     unsigned print_loop = code_size;
 
