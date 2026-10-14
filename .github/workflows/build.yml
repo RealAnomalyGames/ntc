@@ -1,0 +1,49 @@
+name: NTC Build 001
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build NTC Compiler
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Prepare build directory
+        run: mkdir -p build
+
+      - name: Compile NTC compiler
+        run: |
+          gcc -std=c11 -O2 -Wall -Wextra -Werror \
+            compiler/ntc.c -o build/ntc
+
+      - name: Compile Hello World
+        run: |
+          ./build/ntc examples/hello.ntc build/hello.exe
+
+      - name: Verify DOS MZ executable
+        run: |
+          SIGNATURE="$(od -An -tx1 -N2 build/hello.exe | tr -d ' \n')"
+          if [ "$SIGNATURE" != "4d5a" ]; then
+            echo "ERROR: Output does not have an MZ signature."
+            exit 1
+          fi
+          file build/hello.exe
+          echo "DOS MZ signature verified."
+
+      - name: Upload compiler and example
+        uses: actions/upload-artifact@v4
+        with:
+          name: ntc-build-001
+          path: |
+            build/ntc
+            build/hello.exe
+          if-no-files-found: error
