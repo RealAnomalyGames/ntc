@@ -1,268 +1,948 @@
+/*
+ * NTC - Neptune Code
+ * Build 002: Variables and Arithmetic
+ *
+ * Host compiler: C11
+ * Output: 16-bit x86 DOS MZ executable
+ *
+ * Supported instructions:
+ *   PROGRAM name
+ *   LET name = value
+ *   MOV destination, source
+ *   ADD destination, operand
+ *   SUB destination, operand
+ *   MUL destination, operand
+ *   DIV destination, operand
+ *   PRINT "text"
+ *   PRINT variable
+ *   EXIT 0..255
+ *   END
+ */
+
 #include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_PRINTS 128
-#define MAX_TEXT 1024
-#define MAX_SOURCE_LINE 2048
+#define MAX_VARS       128
+#define MAX_STRINGS    128
+#define MAX_INSNS      512
+#define MAX_NAME       64
+#define MAX_TEXT       1024
+#define MAX_LINE       2048
+#define MAX_CODE       60000
 #define MZ_HEADER_SIZE 32
 
 typedef struct {
-    char text[MAX_TEXT];
-} PrintLine;
+    char name[MAX_NAME];
+} Variable;
 
-static PrintLine prints[MAX_PRINTS];
-static unsigned print_count;
+typedef struct {
+    char text[MAX_TEXT];
+} StringData;
+
+typedef enum {
+    OP_LET,
+    OP_MOV,
+    OP_ADD,
+    OP_SUB,
+    OP_MUL,
+    OP_DIV,
+    OP_PRINT_TEXT,
+    OP_PRINT_VAR,
+    OP_EXIT
+} OpCode;
+
+typedef enum {
+    ARG_IMMEDIATE,
+    ARG_VARIABLE
+} ArgKind;
+
+typedef struct {
+    ArgKind kind;
+    unsigned value;
+} Argument;
+
+typedef struct {
+    OpCode op;
+    unsigned destination;
+    Argument argument;
+    unsigned string_index;
+    unsigned immediate;
+} Instruction;
+
+typedef enum {
+    PATCH_VARIABLE,
+    PATCH_STRING
+} PatchKind;
+
+typedef struct {
+    unsigned position;
+    PatchKind kind;
+    unsigned index;
+} AddressPatch;
+
+static Variable variables[MAX_VARS];
+static StringData strings[MAX_STRINGS];
+static Instruction instructions[MAX_INSNS];
+static AddressPatch patches[MAX_CODE / 2];
+
+static unsigned variable_count;
+static unsigned string_count;
+static unsigned instruction_count;
+static unsigned patch_count;
 static unsigned exit_code;
+
+static uint8_t code[MAX_CODE];
+static unsigned code_size;
+
 static int saw_program;
 static int saw_exit;
 static int saw_end;
 
-static void error(const char *message, unsigned line) {
+/* --------------------------------------------------------- */
+/* General helpers                                           */
+/* --------------------------------------------------------- */
+
+static void error_at(unsigned line, const char *message)
+{
     fprintf(stderr, "NTC error on line %u: %s\n", line, message);
 }
 
-static void put16(uint8_t *p, unsigned value) {
-    p[0] = (uint8_t)(value & 0xFF);
-    p[1] = (uint8_t)((value >> 8) & 0xFF);
+static char *trim(char *s)
+{
+    while (isspace((unsigned char)*s))
+        ++s;
+
+    char *end = s + strlen(s);
+
+    while (end > s && isspace((unsigned char)end[-1]))
+        --end;
+
+    *end = '\0';
+    return s;
 }
 
-static int is_name(const char *s) {
-    if (!(*s) || !(isalpha((unsigned char)*s) || *s == '_'))
+static int valid_name(const char *s)
+{
+    if (!*s ||
+        !(isalpha((unsigned char)*s) || *s == '_'))
         return 0;
 
     for (++s; *s; ++s) {
         if (!(isalnum((unsigned char)*s) || *s == '_'))
             return 0;
     }
+
     return 1;
 }
 
-static char *trim(char *s) {
-    while (isspace((unsigned char)*s))
-        ++s;
+static int find_variable(const char *name)
+{
+    for (unsigned i = 0; i < variable_count; ++i) {
+        if (strcmp(variables[i].name, name) == 0)
+            return (int)i;
+    }
 
-    char *end = s + strlen(s);
-    while (end > s && isspace((unsigned char)end[-1]))
-        --end;
-    *end = '\0';
-    return s;
+    return -1;
 }
 
-static int parse_source(const char *path) {
-    FILE *f = fopen(path, "r");
-    if (!f) {
+static int get_or_create_variable(const char *name)
+{
+    int found = find_variable(name);
+
+    if (found >= 0)
+        return found;
+
+    if (variable_count >= MAX_VARS)
+        return -1;
+
+    if (strlen(name) >= MAX_NAME)
+        return -1;
+
+    unsigned index = variable_count++;
+
+    strcpy(variables[index].name, name);
+    return (int)index;
+}
+
+static int parse_number(const char *s, unsigned *value)
+{
+    if (!*s)
+        return 0;
+
+    for (const char *p = s; *p; ++p) {
+        if (!isdigit((unsigned char)*p))
+            return 0;
+    }
+
+    char *end;
+    unsigned long n = strtoul(s, &end, 10);
+
+    if (*end || n > 65535)
+        return 0;
+
+    *value = (unsigned)n;
+    return 1;
+}
+
+static int add_instruction(Instruction ins)
+{
+    if (instruction_count >= MAX_INSNS)
+        return 0;
+
+    instructions[instruction_count++] = ins;
+    return 1;
+}
+
+static int add_string(const char *text)
+{
+    if (string_count >= MAX_STRINGS ||
+        strlen(text) >= MAX_TEXT)
+        return -1;
+
+    unsigned index = string_count++;
+    strcpy(strings[index].text, text);
+
+    return (int)index;
+}
+
+/* Remove comments while respecting quoted strings. */
+static void strip_comment(char *line)
+{
+    int quoted = 0;
+
+    for (char *p = line; *p; ++p) {
+        if (*p == '"')
+            quoted = !quoted;
+        else if (*p == ';' && !quoted) {
+            *p = '\0';
+            return;
+        }
+    }
+}
+
+/* Parse an operand as a previously declared variable or integer. */
+static int parse_argument(char *text, Argument *arg)
+{
+    char *s = trim(text);
+
+    if (valid_name(s)) {
+        int index = find_variable(s);
+
+        if (index < 0)
+            return 0;
+
+        arg->kind = ARG_VARIABLE;
+        arg->value = (unsigned)index;
+        return 1;
+    }
+
+    unsigned number;
+
+    if (!parse_number(s, &number))
+        return 0;
+
+    arg->kind = ARG_IMMEDIATE;
+    arg->value = number;
+    return 1;
+}
+
+/* --------------------------------------------------------- */
+/* Source parser                                             */
+/* --------------------------------------------------------- */
+
+static int parse_source(const char *path)
+{
+    FILE *file = fopen(path, "r");
+
+    if (!file) {
         perror(path);
         return 0;
     }
 
-    char line[MAX_SOURCE_LINE];
-    unsigned line_no = 0;
+    char line[MAX_LINE];
+    unsigned line_number = 0;
 
-    while (fgets(line, sizeof line, f)) {
-        ++line_no;
+    while (fgets(line, sizeof line, file)) {
+        ++line_number;
+
+        if (!strchr(line, '\n') && !feof(file)) {
+            error_at(line_number, "Source line is too long.");
+            fclose(file);
+            return 0;
+        }
+
+        strip_comment(line);
+
         char *s = trim(line);
 
-        if (*s == '\0' || *s == ';')
+        if (!*s)
             continue;
 
         if (saw_end) {
-            error("Unexpected content after END.", line_no);
-            fclose(f);
+            error_at(line_number, "Unexpected content after END.");
+            fclose(file);
             return 0;
         }
 
         if (strncmp(s, "PROGRAM", 7) == 0 &&
             isspace((unsigned char)s[7])) {
             char *name = trim(s + 7);
-            if (saw_program || !is_name(name)) {
-                error("Expected one PROGRAM followed by a valid name.",
-                      line_no);
-                fclose(f);
+
+            if (saw_program || !valid_name(name)) {
+                error_at(line_number,
+                         "Expected one PROGRAM followed by a valid name.");
+                fclose(file);
                 return 0;
             }
+
             saw_program = 1;
-        } else if (strncmp(s, "PRINT", 5) == 0 &&
-                   isspace((unsigned char)s[5])) {
-            char *p = trim(s + 5);
-            size_t len = strlen(p);
+            continue;
+        }
 
-            if (!saw_program || saw_exit || *p != '"' ||
-                len < 2 || p[len - 1] != '"') {
-                error("Expected PRINT \"text\" before EXIT.", line_no);
-                fclose(f);
+        if (!saw_program) {
+            error_at(line_number, "PROGRAM must be the first instruction.");
+            fclose(file);
+            return 0;
+        }
+
+        if (saw_exit) {
+            if (strcmp(s, "END") != 0) {
+                error_at(line_number,
+                         "EXIT must be the last instruction before END.");
+                fclose(file);
                 return 0;
             }
 
-            if (print_count >= MAX_PRINTS ||
-                len - 2 >= MAX_TEXT) {
-                error("Too many PRINT statements or text is too long.",
-                      line_no);
-                fclose(f);
-                return 0;
-            }
-
-            p[len - 1] = '\0';
-            p++;
-
-            if (strchr(p, '"') || strchr(p, '$')) {
-                error("Text cannot contain quotes or the DOS '$' terminator.",
-                      line_no);
-                fclose(f);
-                return 0;
-            }
-
-            strcpy(prints[print_count++].text, p);
-        } else if (strncmp(s, "EXIT", 4) == 0 &&
-                   isspace((unsigned char)s[4])) {
-            char *p = trim(s + 4);
-            char *endptr;
-            long value;
-
-            if (!saw_program || saw_exit || !*p) {
-                error("EXIT must appear once after PROGRAM.", line_no);
-                fclose(f);
-                return 0;
-            }
-
-            value = strtol(p, &endptr, 10);
-            if (*trim(endptr) != '\0' || value < 0 || value > 255) {
-                error("EXIT requires a number from 0 to 255.", line_no);
-                fclose(f);
-                return 0;
-            }
-
-            exit_code = (unsigned)value;
-            saw_exit = 1;
-        } else if (strcmp(s, "END") == 0) {
-            if (!saw_program || !saw_exit) {
-                error("END requires a PROGRAM and EXIT.", line_no);
-                fclose(f);
-                return 0;
-            }
             saw_end = 1;
+            continue;
+        }
+
+        if (strcmp(s, "END") == 0) {
+            error_at(line_number, "END requires a preceding EXIT.");
+            fclose(file);
+            return 0;
+        }
+
+        Instruction ins = {0};
+
+        /* LET name = value */
+        if (strncmp(s, "LET", 3) == 0 &&
+            isspace((unsigned char)s[3])) {
+            char *declaration = trim(s + 3);
+            char *equals = strchr(declaration, '=');
+
+            if (!equals) {
+                error_at(line_number, "Expected LET name = value.");
+                fclose(file);
+                return 0;
+            }
+
+            *equals = '\0';
+
+            char *name = trim(declaration);
+            char *value_text = trim(equals + 1);
+            unsigned value;
+
+            if (!valid_name(name) ||
+                !parse_number(value_text, &value)) {
+                error_at(line_number,
+                         "LET requires a valid name and integer from 0 to 65535.");
+                fclose(file);
+                return 0;
+            }
+
+            int index = get_or_create_variable(name);
+
+            if (index < 0) {
+                error_at(line_number, "Variable table is full or name is too long.");
+                fclose(file);
+                return 0;
+            }
+
+            ins.op = OP_LET;
+            ins.destination = (unsigned)index;
+            ins.immediate = value;
+        }
+
+        /* MOV destination, source */
+        else if (strncmp(s, "MOV", 3) == 0 &&
+                 isspace((unsigned char)s[3])) {
+            char *args = trim(s + 3);
+            char *comma = strchr(args, ',');
+
+            if (!comma) {
+                error_at(line_number, "Expected MOV destination, source.");
+                fclose(file);
+                return 0;
+            }
+
+            *comma = '\0';
+
+            char *destination = trim(args);
+            char *source = trim(comma + 1);
+
+            int index = find_variable(destination);
+
+            if (index < 0 ||
+                !parse_argument(source, &ins.argument)) {
+                error_at(line_number,
+                         "MOV requires a declared destination and valid source.");
+                fclose(file);
+                return 0;
+            }
+
+            ins.op = OP_MOV;
+            ins.destination = (unsigned)index;
+        }
+
+        /* ADD, SUB, MUL, DIV destination, operand */
+        else if ((strncmp(s, "ADD", 3) == 0 &&
+                  isspace((unsigned char)s[3])) ||
+                 (strncmp(s, "SUB", 3) == 0 &&
+                  isspace((unsigned char)s[3])) ||
+                 (strncmp(s, "MUL", 3) == 0 &&
+                  isspace((unsigned char)s[3])) ||
+                 (strncmp(s, "DIV", 3) == 0 &&
+                  isspace((unsigned char)s[3]))) {
+            char *args = trim(s + 3);
+            char *comma = strchr(args, ',');
+
+            if (!comma) {
+                error_at(line_number,
+                         "Expected arithmetic instruction destination, operand.");
+                fclose(file);
+                return 0;
+            }
+
+            *comma = '\0';
+
+            char *destination = trim(args);
+            char *operand = trim(comma + 1);
+
+            int index = find_variable(destination);
+
+            if (index < 0 ||
+                !parse_argument(operand, &ins.argument)) {
+                error_at(line_number,
+                         "Arithmetic requires a declared destination and valid operand.");
+                fclose(file);
+                return 0;
+            }
+
+            if (s[0] == 'A')
+                ins.op = OP_ADD;
+            else if (s[0] == 'S')
+                ins.op = OP_SUB;
+            else if (s[0] == 'M')
+                ins.op = OP_MUL;
+            else
+                ins.op = OP_DIV;
+
+            if (ins.op == OP_DIV &&
+                ins.argument.kind == ARG_IMMEDIATE &&
+                ins.argument.value == 0) {
+                error_at(line_number, "Division by zero is not allowed.");
+                fclose(file);
+                return 0;
+            }
+
+            ins.destination = (unsigned)index;
+        }
+
+        /* PRINT "text" or PRINT variable */
+        else if (strncmp(s, "PRINT", 5) == 0 &&
+                 isspace((unsigned char)s[5])) {
+            char *value = trim(s + 5);
+            size_t len = strlen(value);
+
+            if (len >= 2 && value[0] == '"' &&
+                value[len - 1] == '"') {
+                value[len - 1] = '\0';
+
+                if (strchr(value + 1, '"') ||
+                    strchr(value + 1, '$')) {
+                    error_at(line_number,
+                             "PRINT text cannot contain quotes or '$'.");
+                    fclose(file);
+                    return 0;
+                }
+
+                int index = add_string(value + 1);
+
+                if (index < 0) {
+                    error_at(line_number, "String table is full or text is too long.");
+                    fclose(file);
+                    return 0;
+                }
+
+                ins.op = OP_PRINT_TEXT;
+                ins.string_index = (unsigned)index;
+            } else {
+                int index = find_variable(value);
+
+                if (index < 0) {
+                    error_at(line_number,
+                             "PRINT requires quoted text or a declared variable.");
+                    fclose(file);
+                    return 0;
+                }
+
+                ins.op = OP_PRINT_VAR;
+                ins.destination = (unsigned)index;
+            }
+        }
+
+        /* EXIT code */
+        else if (strncmp(s, "EXIT", 4) == 0 &&
+                 isspace((unsigned char)s[4])) {
+            unsigned value;
+
+            if (!parse_number(trim(s + 4), &value) || value > 255) {
+                error_at(line_number, "EXIT requires an integer from 0 to 255.");
+                fclose(file);
+                return 0;
+            }
+
+            ins.op = OP_EXIT;
+            ins.immediate = value;
+            exit_code = value;
+            saw_exit = 1;
         } else {
-            error("Unknown instruction or invalid syntax.", line_no);
-            fclose(f);
+            error_at(line_number, "Unknown instruction or invalid syntax.");
+            fclose(file);
+            return 0;
+        }
+
+        if (!add_instruction(ins)) {
+            error_at(line_number, "Instruction limit exceeded.");
+            fclose(file);
             return 0;
         }
     }
 
-    if (ferror(f)) {
-        perror("Reading source");
-        fclose(f);
+    int read_error = ferror(file);
+    fclose(file);
+
+    if (read_error) {
+        fprintf(stderr, "NTC error: Could not read source file.\n");
         return 0;
     }
-    fclose(f);
 
     if (!saw_program || !saw_exit || !saw_end) {
         fprintf(stderr,
-                "NTC error: source must contain PROGRAM, EXIT, and END.\n");
+                "NTC error: Source must contain PROGRAM, EXIT, and END.\n");
         return 0;
     }
 
     return 1;
 }
 
-static int compile_mz(const char *output_path) {
-    /*
-     * Each PRINT instruction:
-     *   push cs       0E
-     *   pop ds        1F
-     *   mov dx, imm16 BA lo hi
-     *   mov ah, 09    B4 09
-     *   int 21h       CD 21
-     *
-     * DOS function 09h prints a '$'-terminated string.
-     * EXIT uses DOS function 4Ch.
-     */
-    const unsigned print_instruction_size = 9;
-    const unsigned exit_instruction_size = 5;
+/* --------------------------------------------------------- */
+/* 8086 code emitter                                         */
+/* --------------------------------------------------------- */
 
-    unsigned code_size =
-        print_count * print_instruction_size + exit_instruction_size;
-    unsigned data_size = 0;
+static int emit8(unsigned value)
+{
+    if (code_size >= MAX_CODE)
+        return 0;
 
-    for (unsigned i = 0; i < print_count; ++i)
-        data_size += (unsigned)strlen(prints[i].text) + 3;
+    code[code_size++] = (uint8_t)value;
+    return 1;
+}
 
-    unsigned image_size = code_size + data_size;
-    unsigned file_size = MZ_HEADER_SIZE + image_size;
+static int emit16(unsigned value)
+{
+    return emit8(value) && emit8(value >> 8);
+}
 
-    if (image_size > 65535 || file_size > 65535) {
-        fprintf(stderr, "NTC error: Build 001 output exceeds 16-bit limits.\n");
+static int emit_bytes(const uint8_t *bytes, unsigned count)
+{
+    for (unsigned i = 0; i < count; ++i) {
+        if (!emit8(bytes[i]))
+            return 0;
+    }
+
+    return 1;
+}
+
+static int emit_address(PatchKind kind, unsigned index)
+{
+    if (patch_count >= MAX_CODE / 2)
+        return 0;
+
+    patches[patch_count].position = code_size;
+    patches[patch_count].kind = kind;
+    patches[patch_count].index = index;
+    ++patch_count;
+
+    return emit16(0);
+}
+
+static int emit_variable_load(unsigned index)
+{
+    return emit8(0xA1) &&
+           emit_address(PATCH_VARIABLE, index);
+}
+
+static int emit_variable_store(unsigned index)
+{
+    return emit8(0xA3) &&
+           emit_address(PATCH_VARIABLE, index);
+}
+
+/* --------------------------------------------------------- */
+/* Decimal number output                                     */
+/* --------------------------------------------------------- */
+
+/*
+ * AX contains the unsigned number.
+ *
+ * Divide repeatedly by ten, pushing remainders.
+ * Pop and print digits in reverse order.
+ *
+ * Uses DOS INT 21h, AH=02h to output each character.
+ */
+static int emit_print_number(void)
+{
+    static const uint8_t prefix[] = {
+        0xBB, 0x0A, 0x00,       /* mov bx, 10 */
+        0x31, 0xC9              /* xor cx, cx */
+    };
+
+    if (!emit_bytes(prefix, sizeof prefix))
+        return 0;
+
+    unsigned divide_loop = code_size;
+
+    static const uint8_t divide_body[] = {
+        0x31, 0xD2,             /* xor dx, dx */
+        0xF7, 0xF3,             /* div bx */
+        0x52,                   /* push dx */
+        0x41,                   /* inc cx */
+        0x85, 0xC0              /* test ax, ax */
+    };
+
+    if (!emit_bytes(divide_body, sizeof divide_body))
+        return 0;
+
+    if (!emit8(0x75))
+        return 0;
+
+    unsigned jne_position = code_size;
+
+    if (!emit8(0))
+        return 0;
+
+    unsigned back = divide_loop - (code_size);
+
+    /* The short conditional jump uses a signed 8-bit displacement. */
+    if (back > 127)
+        return 0;
+
+    code[jne_position] = (uint8_t)(int8_t)-(int)back;
+
+    unsigned print_loop = code_size;
+
+    static const uint8_t print_body[] = {
+        0x5A,                   /* pop dx */
+        0x80, 0xC2, 0x30,       /* add dl, '0' */
+        0xB4, 0x02,             /* mov ah, 02h */
+        0xCD, 0x21              /* int 21h */
+    };
+
+    if (!emit_bytes(print_body, sizeof print_body))
+        return 0;
+
+    if (!emit8(0xE2))
+        return 0;
+
+    unsigned loop_position = code_size;
+
+    if (!emit8(0))
+        return 0;
+
+    unsigned distance = code_size - print_loop;
+
+    if (distance > 128)
+        return 0;
+
+    code[loop_position] = (uint8_t)(int8_t)-(int)distance;
+
+    /* Print CR/LF after the decimal number. */
+    static const uint8_t newline[] = {
+        0xB2, 0x0D,             /* mov dl, 13 */
+        0xB4, 0x02,
+        0xCD, 0x21,
+        0xB2, 0x0A,             /* mov dl, 10 */
+        0xB4, 0x02,
+        0xCD, 0x21
+    };
+
+    return emit_bytes(newline, sizeof newline);
+}
+
+/* --------------------------------------------------------- */
+/* Instruction code generation                               */
+/* --------------------------------------------------------- */
+
+static int emit_instruction(const Instruction *ins)
+{
+    switch (ins->op) {
+    case OP_LET:
+        /* mov ax, immediate; mov [variable], ax */
+        return emit8(0xB8) &&
+               emit16(ins->immediate) &&
+               emit_variable_store(ins->destination);
+
+    case OP_MOV:
+        if (ins->argument.kind == ARG_VARIABLE) {
+            return emit_variable_load(ins->argument.value) &&
+                   emit_variable_store(ins->destination);
+        }
+
+        return emit8(0xB8) &&
+               emit16(ins->argument.value) &&
+               emit_variable_store(ins->destination);
+
+    case OP_ADD:
+    case OP_SUB:
+        if (!emit_variable_load(ins->destination))
+            return 0;
+
+        if (ins->argument.kind == ARG_IMMEDIATE) {
+            if (!emit8(ins->op == OP_ADD ? 0x05 : 0x2D) ||
+                !emit16(ins->argument.value))
+                return 0;
+        } else {
+            if (!emit8(ins->op == OP_ADD ? 0x03 : 0x2B) ||
+                !emit8(0x06) ||
+                !emit_address(PATCH_VARIABLE, ins->argument.value))
+                return 0;
+        }
+
+        return emit_variable_store(ins->destination);
+
+    case OP_MUL:
+        if (!emit_variable_load(ins->destination))
+            return 0;
+
+        if (ins->argument.kind == ARG_IMMEDIATE) {
+            if (!emit8(0xBB) ||
+                !emit16(ins->argument.value) ||
+                !emit8(0xF7) ||
+                !emit8(0xE3))
+                return 0;
+        } else {
+            if (!emit8(0xF7) ||
+                !emit8(0x26) ||
+                !emit_address(PATCH_VARIABLE, ins->argument.value))
+                return 0;
+        }
+
+        /* Store the low 16 bits: arithmetic wraps at 65536. */
+        return emit_variable_store(ins->destination);
+
+    case OP_DIV:
+        if (!emit_variable_load(ins->destination))
+            return 0;
+
+        if (ins->argument.kind == ARG_IMMEDIATE) {
+            if (!emit8(0xBB) ||
+                !emit16(ins->argument.value) ||
+                !emit8(0x31) ||
+                !emit8(0xD2) ||
+                !emit8(0xF7) ||
+                !emit8(0xF3))
+                return 0;
+        } else {
+            /*
+             * cmp word [operand], 0
+             * jne +5
+             * mov ax, 4C01h
+             * int 21h
+             */
+            if (!emit8(0x83) ||
+                !emit8(0x3E) ||
+                !emit_address(PATCH_VARIABLE, ins->argument.value) ||
+                !emit8(0x00) ||
+                !emit8(0x75) ||
+                !emit8(0x05) ||
+                !emit8(0xB8) ||
+                !emit16(0x4C01) ||
+                !emit8(0xCD) ||
+                !emit8(0x21))
+                return 0;
+
+            if (!emit8(0x31) ||
+                !emit8(0xD2) ||
+                !emit8(0xF7) ||
+                !emit8(0x36) ||
+                !emit_address(PATCH_VARIABLE, ins->argument.value))
+                return 0;
+        }
+
+        return emit_variable_store(ins->destination);
+
+    case OP_PRINT_TEXT:
+        /* mov dx, string address; mov ah, 09h; int 21h */
+        return emit8(0xBA) &&
+               emit_address(PATCH_STRING, ins->string_index) &&
+               emit8(0xB4) &&
+               emit8(0x09) &&
+               emit8(0xCD) &&
+               emit8(0x21);
+
+    case OP_PRINT_VAR:
+        return emit_variable_load(ins->destination) &&
+               emit_print_number();
+
+    case OP_EXIT:
+        /* mov ax, 4Cxxh; int 21h */
+        return emit8(0xB8) &&
+               emit16(0x4C00 | ins->immediate) &&
+               emit8(0xCD) &&
+               emit8(0x21);
+    }
+
+    return 0;
+}
+
+/* --------------------------------------------------------- */
+/* DOS MZ executable generation                              */
+/* --------------------------------------------------------- */
+
+static void put16(uint8_t *p, unsigned value)
+{
+    p[0] = (uint8_t)(value & 0xFF);
+    p[1] = (uint8_t)((value >> 8) & 0xFF);
+}
+
+static int compile_mz(const char *output_path)
+{
+    /* Initialize DS to the program's code segment. */
+    if (!emit8(0x0E) || !emit8(0x1F)) {
+        fprintf(stderr, "NTC error: Code buffer exhausted.\n");
         return 0;
     }
 
+    for (unsigned i = 0; i < instruction_count; ++i) {
+        if (!emit_instruction(&instructions[i])) {
+            fprintf(stderr,
+                    "NTC error: Could not generate instruction %u.\n",
+                    i + 1);
+            return 0;
+        }
+    }
+
+    unsigned variable_bytes = variable_count * 2;
+    unsigned string_bytes = 0;
+
+    for (unsigned i = 0; i < string_count; ++i)
+        string_bytes += (unsigned)strlen(strings[i].text) + 3;
+
+    unsigned image_size = code_size + variable_bytes + string_bytes;
+    unsigned file_size = MZ_HEADER_SIZE + image_size;
+
+    /*
+     * The initial implementation keeps the entire load image
+     * within one 16-bit segment.
+     */
+    if (image_size > 65535 || file_size > 65535) {
+        fprintf(stderr, "NTC error: Executable exceeds Build 002 size limits.\n");
+        return 0;
+    }
+
+    /* Resolve code references to variables and strings. */
+    for (unsigned i = 0; i < patch_count; ++i) {
+        AddressPatch *patch = &patches[i];
+        unsigned address;
+
+        if (patch->kind == PATCH_VARIABLE) {
+            if (patch->index >= variable_count) {
+                fprintf(stderr, "NTC internal error: Invalid variable reference.\n");
+                return 0;
+            }
+
+            address = code_size + patch->index * 2;
+        } else {
+            if (patch->index >= string_count) {
+                fprintf(stderr, "NTC internal error: Invalid string reference.\n");
+                return 0;
+            }
+
+            address = code_size + variable_bytes;
+
+            for (unsigned j = 0; j < patch->index; ++j)
+                address += (unsigned)strlen(strings[j].text) + 3;
+        }
+
+        if (address > 65535 || patch->position + 1 >= code_size) {
+            fprintf(stderr, "NTC internal error: Address out of range.\n");
+            return 0;
+        }
+
+        put16(code + patch->position, address);
+    }
+
     uint8_t *image = calloc(image_size ? image_size : 1, 1);
+
     if (!image) {
         perror("Memory allocation");
         return 0;
     }
 
-    unsigned data_offset = code_size;
-    unsigned pos = 0;
+    memcpy(image, code, code_size);
 
-    for (unsigned i = 0; i < print_count; ++i) {
-        unsigned message_offset = data_offset;
+    unsigned offset = code_size + variable_bytes;
 
-        image[pos++] = 0x0E;                    /* push cs */
-        image[pos++] = 0x1F;                    /* pop ds */
-        image[pos++] = 0xBA;                    /* mov dx, imm16 */
-        put16(image + pos, message_offset);
-        pos += 2;
-        image[pos++] = 0xB4;                    /* mov ah, 09h */
-        image[pos++] = 0x09;
-        image[pos++] = 0xCD;                    /* int 21h */
-        image[pos++] = 0x21;
+    for (unsigned i = 0; i < string_count; ++i) {
+        size_t len = strlen(strings[i].text);
 
-        size_t len = strlen(prints[i].text);
-        memcpy(image + data_offset, prints[i].text, len);
-        data_offset += (unsigned)len;
-        image[data_offset++] = '\r';
-        image[data_offset++] = '\n';
-        image[data_offset++] = '$';
+        memcpy(image + offset, strings[i].text, len);
+        offset += (unsigned)len;
+
+        image[offset++] = '\r';
+        image[offset++] = '\n';
+        image[offset++] = '$';
     }
 
-    image[pos++] = 0xB8;                        /* mov ax, 4Cxxh */
-    put16(image + pos, 0x4C00 | exit_code);
-    pos += 2;
-    image[pos++] = 0xCD;                        /* int 21h */
-    image[pos++] = 0x21;
-
-    if (pos != code_size || data_offset != image_size) {
-        fprintf(stderr, "NTC internal error: code size mismatch.\n");
+    if (offset != image_size) {
+        fprintf(stderr, "NTC internal error: Image size mismatch.\n");
         free(image);
         return 0;
     }
 
     uint8_t header[MZ_HEADER_SIZE] = {0};
-    put16(header + 0, 0x5A4D);                 /* MZ signature */
-    put16(header + 2, file_size % 512);         /* bytes in last page */
-    put16(header + 4, (file_size + 511) / 512); /* file pages */
-    put16(header + 6, 0);                       /* relocations */
-    put16(header + 8, 2);                       /* header paragraphs */
-    put16(header + 10, 0x1000);                 /* minimum extra memory */
-    put16(header + 12, 0xFFFF);                /* maximum extra memory */
-    put16(header + 14, 0);                      /* SS relative to image */
+
+    put16(header + 0, 0x5A4D);                  /* MZ */
+    put16(header + 2, file_size % 512);
+    put16(header + 4, (file_size + 511) / 512);
+    put16(header + 6, 0);                       /* Relocations */
+    put16(header + 8, 2);                       /* Header paragraphs */
+    put16(header + 10, 0x1000);                 /* Minimum extra memory */
+    put16(header + 12, 0xFFFF);                 /* Maximum extra memory */
+    put16(header + 14, 0);                       /* SS */
     put16(header + 16, 0xFFFE);                 /* SP */
-    put16(header + 18, 0);                      /* checksum */
-    put16(header + 20, 0);                      /* IP */
-    put16(header + 22, 0);                      /* CS relative to image */
-    put16(header + 24, 0x1C);                  /* relocation table offset */
-    put16(header + 26, 0);                      /* overlay number */
+    put16(header + 18, 0);                       /* Checksum */
+    put16(header + 20, 0);                       /* IP */
+    put16(header + 22, 0);                       /* CS */
+    put16(header + 24, 0x1C);                   /* Relocation table */
+    put16(header + 26, 0);                       /* Overlay */
 
     FILE *out = fopen(output_path, "wb");
+
     if (!out) {
         perror(output_path);
         free(image);
         return 0;
     }
 
-    int ok = fwrite(header, 1, sizeof header, out) == sizeof header &&
-             fwrite(image, 1, image_size, out) == image_size;
+    int ok =
+        fwrite(header, 1, sizeof header, out) == sizeof header &&
+        fwrite(image, 1, image_size, out) == image_size;
 
     if (fclose(out) != 0)
         ok = 0;
@@ -275,15 +955,23 @@ static int compile_mz(const char *output_path) {
         return 0;
     }
 
-    printf("NTC: DOS MZ executable created: %s\n", output_path);
-    printf("NTC: %u PRINT instruction(s), %u bytes of code.\n",
-           print_count, code_size);
+    printf("NTC Build 002: Created %s\n", output_path);
+    printf("Variables: %u\n", variable_count);
+    printf("Instructions: %u\n", instruction_count);
+    printf("Code: %u bytes; data: %u bytes\n",
+           code_size, variable_bytes + string_bytes);
+
     return 1;
 }
 
-int main(int argc, char **argv) {
+/* --------------------------------------------------------- */
+/* Main                                                      */
+/* --------------------------------------------------------- */
+
+int main(int argc, char **argv)
+{
     if (argc != 3) {
-        fprintf(stderr, "Neptune Code Compiler - Build 001\n");
+        fprintf(stderr, "NTC - Neptune Code Compiler, Build 002\n");
         fprintf(stderr, "Usage: ntc <source.ntc> <output.exe>\n");
         return 1;
     }
