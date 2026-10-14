@@ -42,6 +42,16 @@ ntc <source.ntc> <output.exe>
 - Build 003: Branching, loops, and routines.
 - Future: Windows NE applications and 32-bit/64-bit PE targets.
 
+## Confirmed Compatibility
+
+The following operating system has been tested and confirmed to run NTC-generated DOS MZ executables.
+
+| Operating system | Status |
+|---|---|
+| MS-DOS 6.22 | Confirmed working |
+
+Only tested and confirmed operating systems are listed here. Additional systems will be added as compatibility testing is completed.
+
 **Platform note:** Build 001 produces DOS executables. Native Windows application support is planned separately and is not yet implemented.
 
 NTC is under active development. The initial instruction set is intentionally small and will expand as the compiler matures.
