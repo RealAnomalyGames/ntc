@@ -46,11 +46,9 @@ ntc <source.ntc> <output.exe>
 
 The following operating system has been tested and confirmed to run NTC-generated DOS MZ executables.
 
-<p align="center">
-  | Operating system | Status |
-  |---|---|
-  | MS-DOS 6.22 | Confirmed working |
-</p>
+| Operating system | Status |
+|---|---|
+| MS-DOS 6.22 | Confirmed working |
 
 Only tested and confirmed operating systems are listed here. Additional systems will be added as compatibility testing is completed.
 
