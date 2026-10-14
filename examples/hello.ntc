@@ -8,5 +8,19 @@ SUB score, 10
 PRINT "Final score:"
 PRINT score
 
+LET doubled = 0
+MOV doubled, score
+MUL doubled, 2
+
+PRINT "Doubled score:"
+PRINT doubled
+
+LET divided = 0
+MOV divided, doubled
+DIV divided, 5
+
+PRINT "Final calculation:"
+PRINT divided
+
 EXIT 0
 END
