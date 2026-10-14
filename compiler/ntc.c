@@ -33,6 +33,8 @@
 #define MAX_LINE       2048
 #define MAX_CODE       60000
 #define MZ_HEADER_SIZE 32
+#define MAX_LABELS     256
+#define MAX_JUMPS      MAX_INSNS
 
 typedef struct {
     char name[MAX_NAME];
