@@ -70,7 +70,9 @@ typedef enum {
     OP_JE,
     OP_JNE,
     OP_JA,
-    OP_JB
+    OP_JB,
+    OP_INPUT,
+    OP_PRINT_TEXT_VAR
 } OpCode;
 
 typedef enum {
@@ -131,6 +133,7 @@ static unsigned string_count;
 static unsigned instruction_count;
 static unsigned patch_count;
 static unsigned exit_code;
+static unsigned variable_bytes_used;
 
 static uint8_t code[MAX_CODE];
 static unsigned code_size;
