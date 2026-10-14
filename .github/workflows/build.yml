@@ -1,8 +1,6 @@
 name: NTC Build 001
 
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 
 permissions:
