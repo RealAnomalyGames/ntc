@@ -1,0 +1,9 @@
+; NTC Build 001 - Hello World
+PROGRAM HelloWorld
+
+PRINT "Hello from Neptune Code!"
+PRINT "My first NTC application."
+PRINT "Compiled into a 16-bit DOS EXE."
+
+EXIT 0
+END
