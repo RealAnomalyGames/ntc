@@ -1,26 +1,14 @@
-; NTC Build 002 - Variables and Arithmetic
-PROGRAM ScoreCalculator
+PROGRAM Countdown
 
-LET score = 100
-ADD score, 25
-SUB score, 10
+LET counter = 5
+LET zero = 0
 
-PRINT "Final score:"
-PRINT score
+LABEL countdown
+PRINT counter
+SUB counter, 1
+CMP counter, zero
+JA countdown
 
-LET doubled = 0
-MOV doubled, score
-MUL doubled, 2
-
-PRINT "Doubled score:"
-PRINT doubled
-
-LET divided = 0
-MOV divided, doubled
-DIV divided, 5
-
-PRINT "Final calculation:"
-PRINT divided
-
+PRINT "Liftoff!"
 EXIT 0
 END
