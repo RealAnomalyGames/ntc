@@ -831,8 +831,12 @@ static int compile_mz(const char *output_path)
     for (unsigned i = 0; i < instruction_count; ++i) {
         if (!emit_instruction(&instructions[i])) {
             fprintf(stderr,
-                    "NTC error: Could not generate instruction %u.\n",
-                    i + 1);
+                    "NTC error: Could not generate instruction %u "
+                    "(opcode %d, code size %u, patches %u).\n",
+                    i + 1,
+                    (int)instructions[i].op,
+                    code_size,
+                    patch_count);
             return 0;
         }
     }
