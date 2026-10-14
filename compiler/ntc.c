@@ -51,7 +51,14 @@ typedef enum {
     OP_DIV,
     OP_PRINT_TEXT,
     OP_PRINT_VAR,
-    OP_EXIT
+    OP_EXIT,
+    OP_LABEL,
+    OP_JMP,
+    OP_CMP,
+    OP_JE,
+    OP_JNE,
+    OP_JA,
+    OP_JB
 } OpCode;
 
 typedef enum {
@@ -68,8 +75,10 @@ typedef struct {
     OpCode op;
     unsigned destination;
     Argument argument;
+    Argument left_argument;
     unsigned string_index;
     unsigned immediate;
+    unsigned label_index;
 } Instruction;
 
 typedef enum {
@@ -83,10 +92,27 @@ typedef struct {
     unsigned index;
 } AddressPatch;
 
+typedef struct {
+    char name[MAX_NAME];
+    unsigned code_offset;
+    int defined;
+} Label;
+
+typedef struct {
+    unsigned position;
+    unsigned label_index;
+} JumpPatch;
+
 static Variable variables[MAX_VARS];
 static StringData strings[MAX_STRINGS];
 static Instruction instructions[MAX_INSNS];
 static AddressPatch patches[MAX_CODE / 2];
+
+static Label labels[MAX_LABELS];
+static JumpPatch jump_patches[MAX_JUMPS];
+
+static unsigned label_count;
+static unsigned jump_patch_count;
 
 static unsigned variable_count;
 static unsigned string_count;
@@ -164,6 +190,36 @@ static int get_or_create_variable(const char *name)
     unsigned index = variable_count++;
 
     strcpy(variables[index].name, name);
+    return (int)index;
+}
+
+static int find_label(const char *name)
+{
+    for (unsigned i = 0; i < label_count; ++i) {
+        if (strcmp(labels[i].name, name) == 0)
+            return (int)i;
+    }
+
+    return -1;
+}
+
+static int get_or_create_label(const char *name)
+{
+    int found = find_label(name);
+
+    if (found >= 0)
+        return found;
+
+    if (label_count >= MAX_LABELS ||
+        strlen(name) >= MAX_NAME)
+        return -1;
+
+    unsigned index = label_count++;
+
+    strcpy(labels[index].name, name);
+    labels[index].code_offset = 0;
+    labels[index].defined = 0;
+
     return (int)index;
 }
 
@@ -328,8 +384,120 @@ static int parse_source(const char *path)
 
         Instruction ins = {0};
 
+        /* LABEL name */
+        if (strncmp(s, "LABEL", 5) == 0 &&
+            isspace((unsigned char)s[5])) {
+            char *name = trim(s + 5);
+
+            if (!valid_name(name)) {
+                error_at(line_number, "LABEL requires a valid name.");
+                fclose(file);
+                return 0;
+            }
+
+            int index = get_or_create_label(name);
+
+            if (index < 0) {
+                error_at(line_number, "Label table is full or name is too long.");
+                fclose(file);
+                return 0;
+            }
+
+            if (labels[index].defined) {
+                error_at(line_number, "Duplicate label definition.");
+                fclose(file);
+                return 0;
+            }
+
+            labels[index].defined = 1;
+            ins.op = OP_LABEL;
+            ins.label_index = (unsigned)index;
+        }
+
+        /* JMP, JE, JNE, JA, JB label */
+        else if ((strncmp(s, "JMP", 3) == 0 &&
+                  isspace((unsigned char)s[3])) ||
+                 (strncmp(s, "JNE", 3) == 0 &&
+                  isspace((unsigned char)s[3])) ||
+                 (strncmp(s, "JE", 2) == 0 &&
+                  isspace((unsigned char)s[2])) ||
+                 (strncmp(s, "JA", 2) == 0 &&
+                  isspace((unsigned char)s[2])) ||
+                 (strncmp(s, "JB", 2) == 0 &&
+                  isspace((unsigned char)s[2]))) {
+            char *target;
+            char mnemonic[4] = {0};
+
+            if (strncmp(s, "JMP", 3) == 0) {
+                strcpy(mnemonic, "JMP");
+                target = trim(s + 3);
+                ins.op = OP_JMP;
+            } else if (strncmp(s, "JNE", 3) == 0) {
+                strcpy(mnemonic, "JNE");
+                target = trim(s + 3);
+                ins.op = OP_JNE;
+            } else if (strncmp(s, "JE", 2) == 0) {
+                strcpy(mnemonic, "JE");
+                target = trim(s + 2);
+                ins.op = OP_JE;
+            } else if (strncmp(s, "JA", 2) == 0) {
+                strcpy(mnemonic, "JA");
+                target = trim(s + 2);
+                ins.op = OP_JA;
+            } else {
+                strcpy(mnemonic, "JB");
+                target = trim(s + 2);
+                ins.op = OP_JB;
+            }
+
+            (void)mnemonic;
+
+            if (!valid_name(target)) {
+                error_at(line_number, "Jump requires a valid label name.");
+                fclose(file);
+                return 0;
+            }
+
+            int index = get_or_create_label(target);
+
+            if (index < 0) {
+                error_at(line_number, "Label table is full or name is too long.");
+                fclose(file);
+                return 0;
+            }
+
+            ins.label_index = (unsigned)index;
+        }
+
+        /* CMP left, right */
+        else if (strncmp(s, "CMP", 3) == 0 &&
+                 isspace((unsigned char)s[3])) {
+            char *args = trim(s + 3);
+            char *comma = strchr(args, ',');
+
+            if (!comma) {
+                error_at(line_number, "Expected CMP left, right.");
+                fclose(file);
+                return 0;
+            }
+
+            *comma = '\0';
+
+            if (!parse_argument(trim(args), &ins.left_argument) ||
+                !parse_argument(trim(comma + 1), &ins.argument)) {
+                error_at(line_number,
+                         "CMP requires declared variables or integers from 0 to 65535.");
+                fclose(file);
+                return 0;
+            }
+
+            ins.op = OP_CMP;
+        }
+
+        /* Existing LET, MOV, arithmetic, PRINT, and EXIT branches follow. */
+
         /* LET name = value */
-        if (strncmp(s, "LET", 3) == 0 &&
+        else if (strncmp(s, "LET", 3) == 0 &&
             isspace((unsigned char)s[3])) {
             char *declaration = trim(s + 3);
             char *equals = strchr(declaration, '=');
@@ -537,6 +705,15 @@ static int parse_source(const char *path)
         return 0;
     }
 
+    for (unsigned i = 0; i < label_count; ++i) {
+        if (!labels[i].defined) {
+            fprintf(stderr,
+                    "NTC error: Undefined label '%s'.\n",
+                    labels[i].name);
+            return 0;
+        }
+    }
+
     return 1;
 }
 
@@ -591,6 +768,59 @@ static int emit_variable_store(unsigned index)
 {
     return emit8(0xA3) &&
            emit_address(PATCH_VARIABLE, index);
+}
+
+static int emit_near_jump(unsigned label_index)
+{
+    if (jump_patch_count >= MAX_JUMPS)
+        return 0;
+
+    if (!emit8(0xE9))
+        return 0; /* JMP near, relative 16-bit displacement */
+
+    jump_patches[jump_patch_count].position = code_size;
+    jump_patches[jump_patch_count].label_index = label_index;
+    ++jump_patch_count;
+
+    return emit16(0);
+}
+
+static int emit_conditional_jump(
+    uint8_t inverse_condition,
+    unsigned label_index)
+{
+    /*
+     * Invert the short condition to skip the three-byte
+     * near JMP when the original condition is false.
+     */
+    return emit8(inverse_condition) &&
+           emit8(0x03) &&
+           emit_near_jump(label_index);
+}
+
+static int emit_comparison(const Instruction *ins)
+{
+    /* Load the left operand into AX. */
+    if (ins->left_argument.kind == ARG_VARIABLE) {
+        if (!emit_variable_load(ins->left_argument.value))
+            return 0;
+    } else {
+        if (!emit8(0xB8) ||
+            !emit16(ins->left_argument.value))
+            return 0;
+    }
+
+    /* Compare AX with the right operand. */
+    if (ins->argument.kind == ARG_IMMEDIATE) {
+        /* cmp ax, immediate16 */
+        return emit8(0x3D) &&
+               emit16(ins->argument.value);
+    }
+
+    /* cmp ax, word ptr [variable] */
+    return emit8(0x3B) &&
+           emit8(0x06) &&
+           emit_address(PATCH_VARIABLE, ins->argument.value);
 }
 
 /* --------------------------------------------------------- */
@@ -811,6 +1041,32 @@ static int emit_instruction(const Instruction *ins)
                emit16(0x4C00 | ins->immediate) &&
                emit8(0xCD) &&
                emit8(0x21);
+
+    case OP_LABEL:
+        labels[ins->label_index].code_offset = code_size;
+        return 1;
+
+    case OP_JMP:
+        return emit_near_jump(ins->label_index);
+
+    case OP_CMP:
+        return emit_comparison(ins);
+
+    case OP_JE:
+        /* If not equal, skip the JMP. */
+        return emit_conditional_jump(0x75, ins->label_index);
+
+    case OP_JNE:
+        /* If equal, skip the JMP. */
+        return emit_conditional_jump(0x74, ins->label_index);
+
+    case OP_JA:
+        /* If below or equal, skip the JMP. */
+        return emit_conditional_jump(0x76, ins->label_index);
+
+    case OP_JB:
+        /* If above or equal, skip the JMP. */
+        return emit_conditional_jump(0x73, ins->label_index);
     }
 
     return 0;
@@ -845,6 +1101,30 @@ static int compile_mz(const char *output_path)
                     patch_count);
             return 0;
         }
+    }
+
+    /* Resolve all near jumps after every label has a code offset. */
+    for (unsigned i = 0; i < jump_patch_count; ++i) {
+        JumpPatch *patch = &jump_patches[i];
+
+        if (patch->label_index >= label_count ||
+            !labels[patch->label_index].defined) {
+            fprintf(stderr, "NTC internal error: Invalid jump target.\n");
+            return 0;
+        }
+
+        int displacement =
+            (int)labels[patch->label_index].code_offset -
+            (int)(patch->position + 2);
+
+        if (displacement < -32768 || displacement > 32767) {
+            fprintf(stderr,
+                    "NTC error: Jump target '%s' is out of range.\n",
+                    labels[patch->label_index].name);
+            return 0;
+        }
+
+        put16(code + patch->position, (unsigned)displacement);
     }
 
     unsigned variable_bytes = variable_count * 2;
