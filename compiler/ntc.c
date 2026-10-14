@@ -36,8 +36,18 @@
 #define MAX_LABELS     256
 #define MAX_JUMPS      MAX_INSNS
 
+typedef enum {
+    VAR_NUMBER,
+    VAR_TEXT
+} VariableKind;
+
+#define TEXT_BUFFER_SIZE 128
+#define TEXT_STORAGE_SIZE (TEXT_BUFFER_SIZE + 2)
+
 typedef struct {
     char name[MAX_NAME];
+    VariableKind kind;
+    unsigned offset;
 } Variable;
 
 typedef struct {
@@ -176,22 +186,37 @@ static int find_variable(const char *name)
     return -1;
 }
 
-static int get_or_create_variable(const char *name)
+static int get_or_create_variable(
+    const char *name,
+    VariableKind kind)
 {
     int found = find_variable(name);
 
-    if (found >= 0)
-        return found;
+    if (found >= 0) {
+        if (variables[found].kind != kind)
+            return -1;
 
-    if (variable_count >= MAX_VARS)
+        return found;
+    }
+
+    if (variable_count >= MAX_VARS ||
+        strlen(name) >= MAX_NAME)
         return -1;
 
-    if (strlen(name) >= MAX_NAME)
+    unsigned storage_size =
+        kind == VAR_TEXT ? TEXT_STORAGE_SIZE : 2;
+
+    if (variable_bytes_used + storage_size > 65535)
         return -1;
 
     unsigned index = variable_count++;
 
     strcpy(variables[index].name, name);
+    variables[index].kind = kind;
+    variables[index].offset = variable_bytes_used;
+
+    variable_bytes_used += storage_size;
+
     return (int)index;
 }
 
@@ -289,7 +314,8 @@ static int parse_argument(char *text, Argument *arg)
     if (valid_name(s)) {
         int index = find_variable(s);
 
-        if (index < 0)
+        if (index < 0 ||
+            variables[index].kind != VAR_NUMBER)
             return 0;
 
         arg->kind = ARG_VARIABLE;
@@ -498,9 +524,9 @@ static int parse_source(const char *path)
 
         /* Existing LET, MOV, arithmetic, PRINT, and EXIT branches follow. */
 
-        /* LET name = value */
+        /* LET name = number OR LET name = "" */
         else if (strncmp(s, "LET", 3) == 0 &&
-            isspace((unsigned char)s[3])) {
+                 isspace((unsigned char)s[3])) {
             char *declaration = trim(s + 3);
             char *equals = strchr(declaration, '=');
 
@@ -514,27 +540,53 @@ static int parse_source(const char *path)
 
             char *name = trim(declaration);
             char *value_text = trim(equals + 1);
-            unsigned value;
 
-            if (!valid_name(name) ||
-                !parse_number(value_text, &value)) {
-                error_at(line_number,
-                         "LET requires a valid name and integer from 0 to 65535.");
+            if (!valid_name(name)) {
+                error_at(line_number, "LET requires a valid variable name.");
                 fclose(file);
                 return 0;
             }
 
-            int index = get_or_create_variable(name);
+            /* Text variables are currently declared with an empty string. */
+            if (strcmp(value_text, "\"\"") == 0) {
+                int index = get_or_create_variable(name, VAR_TEXT);
 
-            if (index < 0) {
-                error_at(line_number, "Variable table is full or name is too long.");
-                fclose(file);
-                return 0;
+                if (index < 0) {
+                    error_at(line_number,
+                             "Cannot create text variable: table full, "
+                             "name too long, or variable type conflict.");
+                    fclose(file);
+                    return 0;
+                }
+
+                ins.op = OP_LET;
+                ins.destination = (unsigned)index;
+                ins.immediate = 0;
+            } else {
+                unsigned value;
+
+                if (!parse_number(value_text, &value)) {
+                    error_at(line_number,
+                             "LET requires an integer from 0 to 65535 "
+                             "or an empty text value \"\".");
+                    fclose(file);
+                    return 0;
+                }
+
+                int index = get_or_create_variable(name, VAR_NUMBER);
+
+                if (index < 0) {
+                    error_at(line_number,
+                             "Cannot create numeric variable: table full, "
+                             "name too long, or variable type conflict.");
+                    fclose(file);
+                    return 0;
+                }
+
+                ins.op = OP_LET;
+                ins.destination = (unsigned)index;
+                ins.immediate = value;
             }
-
-            ins.op = OP_LET;
-            ins.destination = (unsigned)index;
-            ins.immediate = value;
         }
 
         /* MOV destination, source */
@@ -557,6 +609,7 @@ static int parse_source(const char *path)
             int index = find_variable(destination);
 
             if (index < 0 ||
+                variables[index].kind != VAR_NUMBER ||
                 !parse_argument(source, &ins.argument)) {
                 error_at(line_number,
                          "MOV requires a declared destination and valid source.");
@@ -660,9 +713,32 @@ static int parse_source(const char *path)
                     return 0;
                 }
 
-                ins.op = OP_PRINT_VAR;
                 ins.destination = (unsigned)index;
+
+                if (variables[index].kind == VAR_TEXT)
+                    ins.op = OP_PRINT_TEXT_VAR;
+                else
+                    ins.op = OP_PRINT_VAR;
             }
+        }
+
+        /* INPUT text_variable */
+        else if (strncmp(s, "INPUT", 5) == 0 &&
+                 isspace((unsigned char)s[5])) {
+            char *name = trim(s + 5);
+            int index = find_variable(name);
+
+            if (!valid_name(name) ||
+                index < 0 ||
+                variables[index].kind != VAR_TEXT) {
+                error_at(line_number,
+                         "INPUT requires a previously declared text variable.");
+                fclose(file);
+                return 0;
+            }
+
+            ins.op = OP_INPUT;
+            ins.destination = (unsigned)index;
         }
 
         /* EXIT code */
@@ -770,6 +846,65 @@ static int emit_variable_store(unsigned index)
 {
     return emit8(0xA3) &&
            emit_address(PATCH_VARIABLE, index);
+}
+
+static int emit_input(unsigned index)
+{
+    /*
+     * DOS INT 21h, AH=0Ah:
+     * DS:DX points to the buffered keyboard input structure.
+     *
+     * Buffer layout:
+     *   +0: maximum buffer capacity
+     *   +1: number of characters entered
+     *   +2: input characters, followed by carriage return
+     */
+    return emit8(0xBA) &&                  /* mov dx, imm16 */
+           emit_address(PATCH_VARIABLE, index) &&
+           emit8(0xB4) &&                  /* mov ah, 0Ah */
+           emit8(0x0A) &&
+           emit8(0xCD) &&                  /* int 21h */
+           emit8(0x21);
+}
+
+static int emit_print_text_variable(unsigned index)
+{
+    /*
+     * SI = address of the DOS input buffer.
+     * CX = character count stored at [SI+1].
+     * DX = address of text stored at [SI+2].
+     *
+     * DOS INT 21h, AH=40h writes exactly CX characters
+     * to standard output, so '$' characters are allowed.
+     */
+
+    if (!emit8(0xBE) ||                    /* mov si, imm16 */
+        !emit_address(PATCH_VARIABLE, index))
+        return 0;
+
+    static const uint8_t setup[] = {
+        0x31, 0xC9,             /* xor cx, cx */
+        0x8A, 0x4C, 0x01,       /* mov cl, [si+1] */
+        0x8D, 0x54, 0x02,       /* lea dx, [si+2] */
+        0xBB, 0x01, 0x00,       /* mov bx, 1 (stdout) */
+        0xB4, 0x40,             /* mov ah, 40h */
+        0xCD, 0x21              /* int 21h */
+    };
+
+    if (!emit_bytes(setup, sizeof setup))
+        return 0;
+
+    /* Print CR/LF after the text, matching PRINT's other forms. */
+    static const uint8_t newline[] = {
+        0xB2, 0x0D,             /* mov dl, 13 */
+        0xB4, 0x02,             /* mov ah, 02h */
+        0xCD, 0x21,
+        0xB2, 0x0A,             /* mov dl, 10 */
+        0xB4, 0x02,
+        0xCD, 0x21
+    };
+
+    return emit_bytes(newline, sizeof newline);
 }
 
 static int emit_near_jump(unsigned label_index)
@@ -923,6 +1058,11 @@ static int emit_instruction(const Instruction *ins)
 {
     switch (ins->op) {
     case OP_LET:
+        if (variables[ins->destination].kind == VAR_TEXT) {
+            /* Text buffer initialization is performed in compile_mz(). */
+            return 1;
+        }
+
         /* mov ax, immediate; mov [variable], ax */
         return emit8(0xB8) &&
                emit16(ins->immediate) &&
@@ -1037,6 +1177,12 @@ static int emit_instruction(const Instruction *ins)
         return emit_variable_load(ins->destination) &&
                emit_print_number();
 
+    case OP_INPUT:
+        return emit_input(ins->destination);
+
+    case OP_PRINT_TEXT_VAR:
+        return emit_print_text_variable(ins->destination);
+
     case OP_EXIT:
         /* mov ax, 4Cxxh; int 21h */
         return emit8(0xB8) &&
@@ -1129,7 +1275,7 @@ static int compile_mz(const char *output_path)
         put16(code + patch->position, (unsigned)displacement);
     }
 
-    unsigned variable_bytes = variable_count * 2;
+    unsigned variable_bytes = variable_bytes_used;
     unsigned string_bytes = 0;
 
     for (unsigned i = 0; i < string_count; ++i)
@@ -1143,7 +1289,7 @@ static int compile_mz(const char *output_path)
      * within one 16-bit segment.
      */
     if (image_size > 65535 || file_size > 65535) {
-        fprintf(stderr, "NTC error: Executable exceeds Build 002 size limits.\n");
+        fprintf(stderr, "NTC error: Executable exceeds Build 004 size limits.\n");
         return 0;
     }
 
@@ -1158,7 +1304,7 @@ static int compile_mz(const char *output_path)
                 return 0;
             }
 
-            address = code_size + patch->index * 2;
+            address = code_size + variables[patch->index].offset;
         } else {
             if (patch->index >= string_count) {
                 fprintf(stderr, "NTC internal error: Invalid string reference.\n");
@@ -1187,6 +1333,16 @@ static int compile_mz(const char *output_path)
     }
 
     memcpy(image, code, code_size);
+
+    /* Initialize the maximum input length for each text variable. */
+    for (unsigned i = 0; i < variable_count; ++i) {
+        if (variables[i].kind == VAR_TEXT) {
+            unsigned buffer_offset = code_size + variables[i].offset;
+
+            image[buffer_offset] = TEXT_BUFFER_SIZE;
+            image[buffer_offset + 1] = 0;
+        }
+    }
 
     unsigned offset = code_size + variable_bytes;
 
@@ -1247,7 +1403,7 @@ static int compile_mz(const char *output_path)
         return 0;
     }
 
-    printf("NTC Build 002: Created %s\n", output_path);
+    printf("NTC Build 004: Created %s\n", output_path);
     printf("Variables: %u\n", variable_count);
     printf("Instructions: %u\n", instruction_count);
     printf("Code: %u bytes; data: %u bytes\n",
@@ -1263,7 +1419,7 @@ static int compile_mz(const char *output_path)
 int main(int argc, char **argv)
 {
     if (argc != 3) {
-        fprintf(stderr, "NTC - Neptune Code Compiler, Build 002\n");
+        fprintf(stderr, "NTC - Neptune Code Compiler, Build 004\n");
         fprintf(stderr, "Usage: ntc <source.ntc> <output.exe>\n");
         return 1;
     }
