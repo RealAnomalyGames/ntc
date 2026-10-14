@@ -34,7 +34,8 @@ jobs:
           import struct
 
           path = "build/hello.exe"
-          data = open(path, "rb").read()
+          with open(path, "rb") as f:
+              data = f.read()
 
           assert data[:2] == b"MZ", "Missing MZ signature"
           assert len(data) >= 32, "Truncated MZ header"
@@ -44,7 +45,10 @@ jobs:
           ip = struct.unpack_from("<H", data, 20)[0]
           cs = struct.unpack_from("<H", data, 22)[0]
 
-          declared_size = (pages - 1) * 512 + last_page if last_page else pages * 512
+          declared_size = (
+              (pages - 1) * 512 + last_page
+              if last_page else pages * 512
+          )
 
           assert declared_size == len(data), "MZ file size mismatch"
           assert header_paragraphs * 16 == 32, "Unexpected header size"
@@ -53,11 +57,21 @@ jobs:
           print(f"MZ header verified: {len(data)} bytes")
           PY
 
-      - name: Upload compiler and executable
+      - name: Generate SHA-256 checksums
+        run: |
+          sha256sum build/ntc build/hello.exe > build/SHA256SUMS
+          cat build/SHA256SUMS
+
+      - name: Verify generated checksums
+        run: |
+          sha256sum --check build/SHA256SUMS
+
+      - name: Upload compiler, executable, and checksums
         uses: actions/upload-artifact@v4
         with:
           name: ntc-build-004
           path: |
             build/ntc
             build/hello.exe
+            build/SHA256SUMS
           if-no-files-found: error
