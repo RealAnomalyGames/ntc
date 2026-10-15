@@ -1,16 +1,7 @@
-PROGRAM ForestAdventure
+PROGRAM Hello
 
-LET command = ""
-
-PRINT "THE FORGOTTEN FOREST"
-PRINT "You wake up beneath a dead tree."
-PRINT "There is a path to the north."
-PRINT "What do you do?"
-
-INPUT command
-
-PRINT "You typed:"
-PRINT command
+PRINT "Hello from NTC!"
+PRINT "Welcome to Neptune Code."
 
 EXIT 0
 END
