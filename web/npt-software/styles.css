@@ -121,8 +121,8 @@ main {
 }
 
 .editor-panel {
-    grid-column: 2;
-    grid-row: 1;
+    grid-column: 1 / -1;
+    grid-row: auto;
 }
 
 .editor-toolbar {
@@ -131,17 +131,7 @@ main {
 }
 
 #script-editor {
-    display: block;
-    width: 100%;
-    min-height: 310px;
-    resize: vertical;
-    padding: 12px;
-    color: #d7e4f4;
-    background: #18212b;
-    border: 2px inset #aaa;
-    outline: none;
-    font: 13px/1.6 "Courier New", monospace;
-    tab-size: 4;
+    min-height: 240px;
 }
 
 #script-editor:focus {
