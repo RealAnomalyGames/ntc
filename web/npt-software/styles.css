@@ -108,15 +108,6 @@ main {
     letter-spacing: 0.3px;
 }
 
-.dos-screen {
-    min-height: 310px;
-    overflow: hidden;
-    color: #c0c0c0;
-    background: #000;
-    border: 2px inset #aaa;
-    font: 14px "Courier New", monospace;
-}
-
 .welcome-screen {
     padding: 18px;
     line-height: 1.5;
@@ -211,16 +202,6 @@ footer {
     color: #555;
     text-align: center;
     border-top: 1px solid #aaa;
-}
-
-#dos-screen > div:not(.welcome-screen) {
-    width: 100%;
-    min-height: 310px;
-}
-
-#dos-screen canvas {
-    max-width: 100%;
-    image-rendering: pixelated;
 }
 
 @media (max-width: 760px) {
