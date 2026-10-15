@@ -1,0 +1,106 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>NTC Web Compiler | Neptune Corporation</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="./">
+      <span class="brand-mark">N</span>
+      <span>
+        <strong>NEPTUNE CORPORATION</strong>
+        <small>Developer Tools</small>
+      </span>
+    </a>
+    <span class="version">NTC BUILD 006</span>
+  </header>
+
+  <main class="container">
+    <section class="intro">
+      <p class="eyebrow">NEPTUNE CODE</p>
+      <h1>Compile your NTC program.</h1>
+      <p class="subtitle">
+        Turn your .ntc source file into a DOS executable,
+        directly in your browser. No terminal required.
+      </p>
+    </section>
+
+    <section class="compiler-panel" aria-labelledby="compiler-title">
+      <h2 id="compiler-title">Your program</h2>
+      <p class="muted">
+        Choose an NTC source file from your computer.
+        Your source stays in this browser.
+      </p>
+
+      <label class="file-picker" for="source-file">
+        <span class="upload-icon" aria-hidden="true">↑</span>
+        <strong id="file-label">Choose an .ntc file</strong>
+        <span class="muted" id="file-hint">Maximum file size: 1 MB</span>
+        <input id="source-file" type="file"
+               accept=".ntc,text/plain">
+      </label>
+
+      <div class="file-details" id="file-details" hidden>
+        <span aria-hidden="true">▤</span>
+        <span id="selected-name"></span>
+        <button id="remove-file" class="text-button"
+                type="button">Remove</button>
+      </div>
+
+      <button id="compile-button" class="primary-button"
+              type="button" disabled>
+        Compile program
+      </button>
+
+      <p class="privacy-note">
+        <span aria-hidden="true">🔒</span>
+        Compilation runs locally in your browser using WebAssembly.
+        Your source is not uploaded to a compilation server.
+      </p>
+
+      <section id="result" class="result" aria-live="polite"
+               aria-atomic="true" hidden>
+        <h3 id="result-title">Compilation result</h3>
+        <pre id="result-output"></pre>
+        <button id="download-button" class="download-button"
+                type="button" hidden>
+          Download DOS executable
+        </button>
+      </section>
+    </section>
+
+    <section class="info-grid">
+      <article>
+        <span class="info-number">01</span>
+        <h3>Choose</h3>
+        <p>Select your own .ntc source file.</p>
+      </article>
+      <article>
+        <span class="info-number">02</span>
+        <h3>Compile</h3>
+        <p>NTC checks your source and creates the executable.</p>
+      </article>
+      <article>
+        <span class="info-number">03</span>
+        <h3>Download</h3>
+        <p>Save the .exe and test it in a compatible DOS environment.</p>
+      </article>
+    </section>
+
+    <p class="footer-note">
+      NTC currently generates 16-bit DOS MZ executables.
+      It does not generate native 64-bit Windows applications.
+    </p>
+  </main>
+
+  <footer>
+    Neptune Corporation™ · Neptune Code
+  </footer>
+</body>
+</html>
