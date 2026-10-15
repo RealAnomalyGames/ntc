@@ -134,7 +134,6 @@ static unsigned variable_count;
 static unsigned string_count;
 static unsigned instruction_count;
 static unsigned patch_count;
-static unsigned exit_code;
 static unsigned variable_bytes_used;
 
 static uint8_t code[MAX_CODE];
@@ -772,7 +771,6 @@ static int parse_source(const char *path)
 
             ins.op = OP_EXIT;
             ins.immediate = value;
-            exit_code = value;
             saw_exit = 1;
         } else {
             error_at(line_number, "Unknown instruction or invalid syntax.");
