@@ -33,7 +33,7 @@ jobs:
           import os
           import struct
 
-          path = "build/hello.exe"
+          path = "build/numeric_input.exe"
           with open(path, "rb") as f:
               data = f.read()
 
@@ -59,7 +59,7 @@ jobs:
 
       - name: Generate SHA-256 checksums
         run: |
-          sha256sum build/ntc build/hello.exe > build/SHA256SUMS
+          sha256sum build/ntc build/numeric_input.exe > build/SHA256SUMS
           cat build/SHA256SUMS
 
       - name: Verify generated checksums
@@ -72,6 +72,6 @@ jobs:
           name: ntc-build-004
           path: |
             build/ntc
-            build/hello.exe
+            build/numeric_input.exe
             build/SHA256SUMS
           if-no-files-found: error
