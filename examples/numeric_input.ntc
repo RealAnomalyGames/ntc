@@ -11,10 +11,11 @@ CMP choice, one
 JE first_choice
 
 PRINT "You chose something other than 1."
-EXIT 0
+JMP finish
 
 LABEL first_choice
 PRINT "You chose 1!"
-EXIT 0
 
+LABEL finish
+EXIT 0
 END
