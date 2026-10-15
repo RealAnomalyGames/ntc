@@ -1,0 +1,22 @@
+PROGRAM Branching
+
+LET choice = 0
+LET one = 1
+
+PRINT "Choose a door: 1 or 2"
+INPUT choice
+
+CMP choice, one
+JE first_door
+
+PRINT "You enter the second door."
+JMP finish
+
+LABEL first_door
+PRINT "You enter the first door."
+
+LABEL finish
+PRINT "End of demonstration."
+
+EXIT 0
+END
