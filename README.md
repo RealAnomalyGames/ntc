@@ -1,59 +1,129 @@
-# NTC — Neptune Code
-
 <p align="center">
   <img src="https://github.com/RealAnomalyGames/ntc/blob/main/logo/nptlogo.png" alt="NTC Logo">
 </p>
 
+# Neptune Code (NTC)
 
-**NTC (Neptune Code)** is a general-purpose, assembly-inspired programming language developed by Neptune Corporation™.
+**An assembly-inspired programming language by Neptune Corporation™**
 
-NTC aims to make low-level programming simple and approachable while allowing developers to create games, utilities, applications, and other software.
+Neptune Code (NTC) is a lightweight, instruction-based programming language designed to make low-level programming concepts accessible through a straightforward syntax.
 
-## Build 001
+NTC currently compiles source programs into **16-bit DOS MZ executables**, targeting compatible DOS environments. Its current features include numeric and text variables, arithmetic, keyboard input, text output, comparisons, conditional jumps, and loops built from labels and jumps.
 
-The first compiler milestone targets 16-bit x86 DOS MZ executables.
+---
 
-### Initial features
-- `PROGRAM` — Declare a program name.
-- `PRINT` — Display text.
-- `EXIT` — Exit with a status code.
-- `END` — Mark the end of the source program.
-- Automated compiler builds using GitHub Actions.
+## Features
 
-### Example
+- **Numeric variables** — unsigned 16-bit integer values from 0 to 65,535.
+- **Text variables** — fixed-size text input and output.
+- **Arithmetic** — addition, subtraction, multiplication, and integer division.
+- **Keyboard input** — accept text or validated decimal numbers.
+- **Text output** — display string literals and variable values.
+- **Comparisons** — compare numeric operands.
+- **Conditional branching** — jump based on comparison results.
+- **Loops** — construct loops using labels and backward jumps.
+- **DOS executable generation** — compile NTC source files into 16-bit DOS MZ executables.
 
-```asm
-PROGRAM HelloWorld
+## Quick Start
+
+### Your first program
+
+Create a file named `hello.ntc`:
+
+```ntc
+PROGRAM Hello
 
 PRINT "Hello from Neptune Code!"
+PRINT "My first NTC program."
+
 EXIT 0
 END
 ```
 
-### Usage
+### Build the compiler
 
-```text
-ntc <source.ntc> <output.exe>
+Requirements: GCC with C11 support.
+
+From the repository root, run:
+
+```bash
+mkdir -p build
+gcc -std=c11 -O2 -Wall -Wextra -Werror compiler/ntc.c -o build/ntc
 ```
 
-### Development roadmap
-- Build 001: DOS MZ executable generation.
-- Build 002: Variables and arithmetic.
-- Build 003: Branching, loops, and routines.
-- Future: Windows NE applications and 32-bit/64-bit PE targets.
+### Compile your program
 
-## Confirmed Compatibility
+```bash
+./build/ntc hello.ntc build/hello.exe
+```
 
-The following operating system has been tested and confirmed to run NTC-generated DOS MZ executables.
+The resulting `build/hello.exe` is a **16-bit DOS executable**, not a native modern Windows application.
 
-| Operating system | Status |
+Transfer it into a compatible DOS environment, such as MS-DOS 6.22, and run:
+
+```dos
+HELLO
+```
+
+You can also compile the included examples using the NTC compiler.
+
+## Example Programs
+
+The `examples/` directory contains programs demonstrating the language's current features.
+
+| Example | Description |
 |---|---|
-| MS-DOS 6.22 | Confirmed working |
+| `hello.ntc` | Basic text output |
+| `variables.ntc` | Numeric variables and assignment |
+| `arithmetic.ntc` | Arithmetic operations |
+| `text_input.ntc` | Text keyboard input |
+| `numeric_input.ntc` | Numeric keyboard input |
+| `comparison.ntc` | Numeric comparisons |
+| `branching.ntc` | Conditional branching |
+| `countdown.ntc` | Repetition using labels and jumps |
+| `skullgeon_demo.ntc` | An interactive dungeon demonstration |
 
-Only tested and confirmed operating systems are listed here. Additional systems will be added as compatibility testing is completed.
+Compile an example with:
 
+```bash
+./build/ntc examples/hello.ntc build/hello.exe
+```
 
+See [`docs/EXAMPLES.md`](docs/EXAMPLES.md) for the complete example catalog.
 
-**Platform note:** Build 001 produces DOS executables. Native Windows application support is planned separately and is not yet implemented.
+## Documentation
 
-NTC is under active development. The initial instruction set is intentionally small and will expand as the compiler matures.
+Start here to learn the language and understand its current limitations.
+
+- [Getting Started](docs/GETTING_STARTED.md) — build the compiler and compile your first program.
+- [Language Reference](docs/LANGUAGE_REFERENCE.md) — syntax, instructions, variables, and control flow.
+- [Examples](docs/EXAMPLES.md) — descriptions and compilation instructions for included programs.
+- [Current Limitations](docs/LIMITATIONS.md) — supported targets, data types, and restrictions.
+
+## Build Validation
+
+NTC uses GitHub Actions to build the compiler and validate example programs.
+
+The build workflow can check that the compiler successfully generates DOS executables. Successful compilation alone does not guarantee that every program behaves correctly at runtime, so interactive examples should also be tested in a compatible DOS environment.
+
+## Current Status
+
+**Documentation release: Build 006 — Examples & Documentation**
+
+Build 006 focuses on example programs and documentation. It does not introduce compiler changes beyond the existing Build 005 functionality.
+
+The current compiler targets 16-bit DOS MZ executables. Other executable formats and additional language features are potential future development work, not current capabilities.
+
+## Project Information
+
+**Project:** Neptune Code (NTC)  
+**Developer / Publisher:** Neptune Corporation™  
+**Primary implementation language:** C  
+**Compiler source:** [`compiler/ntc.c`](compiler/ntc.c)  
+**Current executable target:** 16-bit DOS MZ
+
+See the repository's license and distribution terms for the applicable permissions and restrictions.
+
+---
+
+*Neptune Code — straightforward programming, one instruction at a time.*
