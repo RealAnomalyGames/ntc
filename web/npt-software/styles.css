@@ -108,38 +108,7 @@ main {
     letter-spacing: 0.3px;
 }
 
-.welcome-screen {
-    padding: 18px;
-    line-height: 1.5;
-}
-
-.welcome-logo {
-    color: #fff;
-    font-weight: bold;
-    font-size: 18px;
-}
-
-.welcome-screen hr {
-    border: 0;
-    border-top: 1px solid #555;
-}
-
-.blink {
-    color: #fff;
-    animation: blink 1s steps(2, start) infinite;
-}
-
-.hint {
-    margin-top: 35px;
-    color: #888;
-    font-size: 12px;
-}
-
-@keyframes blink {
-    to { visibility: hidden; }
-}
-
-.status-bar, .editor-toolbar {
+.editor-toolbar {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
