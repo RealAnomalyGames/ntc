@@ -63,10 +63,14 @@ async function getCompiler() {
         );
     }
 
-    if (!compilerModulePromise) {
+    if (!compilerModulePromise) {      
         compilerModulePromise = createNTCModule({
-            print: (text) => log(text),
-            printErr: (text) => log("COMPILER: " + text)
+            print: (message) => {
+                log("[NTC] " + message);
+            },
+            printErr: (message) => {
+                log("[NTC ERROR] " + message);
+            }
         });
     }
 
@@ -114,9 +118,13 @@ async function compileAndRun() {
                 throw error;
             }
         }
-
+   
         if (exitCode !== 0) {
-            throw new Error("NTC compilation failed with exit code " + exitCode);
+            log("NTC compiler returned exit code: " + exitCode);
+            log("Check the compiler messages above for the actual error.");
+
+            setStatus("Compilation failed");
+            return;
         }
 
         const executable = compiler.FS.readFile("/NPTGAME.EXE");
