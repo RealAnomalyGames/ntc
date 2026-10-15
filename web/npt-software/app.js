@@ -11,6 +11,8 @@ console.log("js-dos diagnostic:", {
     page: window.location.href
 });
 
+pathPrefix: "./js-dos/emulators/",
+
 window.addEventListener("load", () => {
     if (typeof window.Dos !== "function") {
         console.error(
