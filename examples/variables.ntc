@@ -1,0 +1,15 @@
+PROGRAM Variables
+
+LET score = 100
+LET bonus = 25
+
+PRINT "Initial score:"
+PRINT score
+
+MOV score, bonus
+
+PRINT "Score after MOV:"
+PRINT score
+
+EXIT 0
+END
