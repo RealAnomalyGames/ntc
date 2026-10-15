@@ -1,0 +1,13 @@
+
+PROGRAM NumericInput
+
+LET age = 0
+
+PRINT "Enter your age:"
+INPUT age
+
+PRINT "You entered:"
+PRINT age
+
+EXIT 0
+END
