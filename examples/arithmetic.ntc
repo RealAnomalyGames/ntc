@@ -1,0 +1,16 @@
+
+PROGRAM Arithmetic
+
+LET first = 20
+LET second = 5
+
+ADD first, second
+PRINT "20 + 5:"
+PRINT first
+
+SUB first, second
+PRINT "25 - 5:"
+PRINT first
+
+EXIT 0
+END
