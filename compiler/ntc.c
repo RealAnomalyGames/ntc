@@ -1,6 +1,6 @@
 /*
  * NTC - Neptune Code
- * Build 002: Variables and Arithmetic
+ * Build 005: Numeric Input
  *
  * Host compiler: C11
  * Output: 16-bit x86 DOS MZ executable
@@ -30,6 +30,7 @@
 #define MAX_INSNS      512
 #define MAX_NAME       64
 #define MAX_TEXT       1024
+#define NUMERIC_INPUT_STORAGE_SIZE TEXT_STORAGE_SIZE
 #define MAX_LINE       2048
 #define MAX_CODE       60000
 #define MZ_HEADER_SIZE 32
@@ -97,7 +98,8 @@ typedef struct {
 
 typedef enum {
     PATCH_VARIABLE,
-    PATCH_STRING
+    PATCH_STRING,
+    PATCH_INPUT_BUFFER
 } PatchKind;
 
 typedef struct {
@@ -651,6 +653,7 @@ static int parse_source(const char *path)
             int index = find_variable(destination);
 
             if (index < 0 ||
+                variables[index].kind != VAR_NUMBER ||
                 !parse_argument(operand, &ins.argument)) {
                 error_at(line_number,
                          "Arithmetic requires a declared destination and valid operand.");
@@ -725,23 +728,35 @@ static int parse_source(const char *path)
             }
         }
 
-        /* INPUT text_variable */
+        /* INPUT text_variable OR INPUT numeric_variable */
         else if (strncmp(s, "INPUT", 5) == 0 &&
                  isspace((unsigned char)s[5])) {
             char *name = trim(s + 5);
             int index = find_variable(name);
 
-            if (!valid_name(name) ||
-                index < 0 ||
-                variables[index].kind != VAR_TEXT) {
+            if (!valid_name(name) || index < 0) {
                 error_at(line_number,
-                         "INPUT requires a previously declared text variable.");
+                         "INPUT requires a previously declared variable.");
                 fclose(file);
                 return 0;
             }
 
             ins.op = OP_INPUT;
             ins.destination = (unsigned)index;
+
+            if (variables[index].kind == VAR_NUMBER) {
+                int message_index = add_string(
+                    "Invalid input. Enter a number from 0 to 65535:");
+
+                if (message_index < 0) {
+                    error_at(line_number,
+                             "Could not add numeric input error message.");
+                    fclose(file);
+                    return 0;
+                }
+
+                ins.string_index = (unsigned)message_index;
+            }
         }
 
         /* EXIT code */
@@ -868,6 +883,139 @@ static int emit_input(unsigned index)
            emit8(0x0A) &&
            emit8(0xCD) &&                  /* int 21h */
            emit8(0x21);
+}
+
+static int patch_short_jump(unsigned displacement_position,
+                            unsigned target)
+{
+    int displacement =
+        (int)target - (int)(displacement_position + 1);
+
+    if (displacement < -128 || displacement > 127)
+        return 0;
+
+    code[displacement_position] = (uint8_t)(int8_t)displacement;
+    return 1;
+}
+
+static int emit_numeric_input(unsigned index, unsigned message_index)
+{
+    unsigned retry = code_size;
+
+    /* DOS buffered keyboard input: DS:DX -> numeric buffer. */
+    if (!emit8(0xBA) ||
+        !emit_address(PATCH_INPUT_BUFFER, 0) ||
+        !emit8(0xB4) || !emit8(0x0A) ||
+        !emit8(0xCD) || !emit8(0x21))
+        return 0;
+
+    /* Read the number of characters entered. */
+    if (!emit8(0x8A) || !emit8(0x0E) ||
+        !emit_address(PATCH_INPUT_BUFFER, 1))
+        return 0;
+
+    /* Empty input: retry. */
+    if (!emit8(0xE3))
+        return 0;
+
+    unsigned empty_retry = code_size;
+    if (!emit8(0))
+        return 0;
+
+    /* SI points to the first character; DI counts remaining digits. */
+    if (!emit8(0xBE) ||
+        !emit_address(PATCH_INPUT_BUFFER, 2) ||
+        !emit8(0x31) || !emit8(0xDB) ||
+        !emit8(0x89) || !emit8(0xCF))
+        return 0;
+
+    unsigned parse_loop = code_size;
+
+    /* AL = current character minus '0'; reject anything above 9. */
+    if (!emit8(0x8A) || !emit8(0x04) ||
+        !emit8(0x2C) || !emit8(0x30) ||
+        !emit8(0x3C) || !emit8(0x09) ||
+        !emit8(0x77))
+        return 0;
+
+    unsigned bad_digit = code_size;
+    if (!emit8(0))
+        return 0;
+
+    /* Save digit, multiply accumulated value by ten. */
+    if (!emit8(0x30) || !emit8(0xE4) ||
+        !emit8(0x50) ||
+        !emit8(0x89) || !emit8(0xD8) ||
+        !emit8(0xB9) || !emit16(10) ||
+        !emit8(0xF7) || !emit8(0xE1) ||
+        !emit8(0x59))
+        return 0;
+
+    /* A nonzero high word means multiplication overflowed. */
+    if (!emit8(0x09) || !emit8(0xD2) ||
+        !emit8(0x75))
+        return 0;
+
+    unsigned multiply_overflow = code_size;
+    if (!emit8(0))
+        return 0;
+
+    /* Add digit; carry means the result exceeds 65535. */
+    if (!emit8(0x01) || !emit8(0xC8) ||
+        !emit8(0x72))
+        return 0;
+
+    unsigned addition_overflow = code_size;
+    if (!emit8(0))
+        return 0;
+
+    if (!emit8(0x89) || !emit8(0xC3) ||
+        !emit8(0x46) ||
+        !emit8(0x4F) ||
+        !emit8(0x75))
+        return 0;
+
+    unsigned continue_loop = code_size;
+    if (!emit8(0))
+        return 0;
+
+    /* Success: store the parsed number. */
+    if (!emit8(0x89) || !emit8(0xD8) ||
+        !emit_variable_store(index) ||
+        !emit8(0xEB))
+        return 0;
+
+    unsigned success_jump = code_size;
+    if (!emit8(0))
+        return 0;
+
+    /* Invalid input: display the message and read again. */
+    unsigned invalid = code_size;
+
+    if (!emit8(0xBA) ||
+        !emit_address(PATCH_STRING, message_index) ||
+        !emit8(0xB4) || !emit8(0x09) ||
+        !emit8(0xCD) || !emit8(0x21) ||
+        !emit8(0xE9))
+        return 0;
+
+    /* Backward near jump to retry. */
+    int retry_displacement =
+        (int)retry - (int)(code_size + 2);
+
+    if (retry_displacement < -32768 ||
+        retry_displacement > 32767 ||
+        !emit16((unsigned)retry_displacement))
+        return 0;
+
+    unsigned done = code_size;
+
+    return patch_short_jump(empty_retry, retry) &&
+           patch_short_jump(bad_digit, invalid) &&
+           patch_short_jump(multiply_overflow, invalid) &&
+           patch_short_jump(addition_overflow, invalid) &&
+           patch_short_jump(continue_loop, parse_loop) &&
+           patch_short_jump(success_jump, done);
 }
 
 static int emit_print_text_variable(unsigned index)
@@ -1181,7 +1329,12 @@ static int emit_instruction(const Instruction *ins)
                emit_print_number();
 
     case OP_INPUT:
-        return emit_input(ins->destination);
+        if (variables[ins->destination].kind == VAR_TEXT)
+            return emit_input(ins->destination);
+
+        return emit_numeric_input(
+            ins->destination,
+            ins->string_index);
 
     case OP_PRINT_TEXT_VAR:
         return emit_print_text_variable(ins->destination);
@@ -1278,7 +1431,8 @@ static int compile_mz(const char *output_path)
         put16(code + patch->position, (unsigned)displacement);
     }
 
-    unsigned variable_bytes = variable_bytes_used;
+    unsigned variable_bytes =
+        variable_bytes_used + NUMERIC_INPUT_STORAGE_SIZE;
     unsigned string_bytes = 0;
 
     for (unsigned i = 0; i < string_count; ++i)
@@ -1303,14 +1457,24 @@ static int compile_mz(const char *output_path)
 
         if (patch->kind == PATCH_VARIABLE) {
             if (patch->index >= variable_count) {
-                fprintf(stderr, "NTC internal error: Invalid variable reference.\n");
+                fprintf(stderr,
+                        "NTC internal error: Invalid variable reference.\n");
                 return 0;
             }
 
             address = code_size + variables[patch->index].offset;
+        } else if (patch->kind == PATCH_INPUT_BUFFER) {
+            if (patch->index >= NUMERIC_INPUT_STORAGE_SIZE) {
+                fprintf(stderr,
+                        "NTC internal error: Invalid input buffer reference.\n");
+                return 0;
+            }
+
+            address = code_size + variable_bytes_used + patch->index;
         } else {
             if (patch->index >= string_count) {
-                fprintf(stderr, "NTC internal error: Invalid string reference.\n");
+                fprintf(stderr,
+                        "NTC internal error: Invalid string reference.\n");
                 return 0;
             }
 
@@ -1346,6 +1510,12 @@ static int compile_mz(const char *output_path)
             image[buffer_offset + 1] = 0;
         }
     }
+
+    unsigned numeric_buffer_offset =
+        code_size + variable_bytes_used;
+
+    image[numeric_buffer_offset] = TEXT_BUFFER_SIZE;
+    image[numeric_buffer_offset + 1] = 0;
 
     unsigned offset = code_size + variable_bytes;
 
