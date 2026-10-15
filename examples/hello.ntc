@@ -1,14 +1,16 @@
-PROGRAM Countdown
+PROGRAM ForestAdventure
 
-LET counter = 5
-LET zero = 0
+LET command = ""
 
-LABEL countdown
-PRINT counter
-SUB counter, 1
-CMP counter, zero
-JA countdown
+PRINT "THE FORGOTTEN FOREST"
+PRINT "You wake up beneath a dead tree."
+PRINT "There is a path to the north."
+PRINT "What do you do?"
 
-PRINT "Liftoff!"
+INPUT command
+
+PRINT "You typed:"
+PRINT command
+
 EXIT 0
 END
