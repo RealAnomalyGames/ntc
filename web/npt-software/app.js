@@ -30,10 +30,11 @@ function downloadFile(name, data, type) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function cleanDosScreen() {
+async function cleanDosScreen() {
     if (emulator) {
-        emulator.stop();
+        const previousEmulator = emulator;
         emulator = null;
+        await previousEmulator.stop();
     }
 
     dosScreen.replaceChildren();
@@ -108,30 +109,58 @@ async function compileAndRun() {
         log("Executable size: " + executable.length + " bytes.");
         log("Starting DOS emulator...");
 
+        
         await cleanDosScreen();
 
+        if (typeof Dos !== "function") {
+            throw new Error(
+                "js-dos did not load. Check the js-dos script URL and browser console."
+            );
+        }
+
+        setStatus("Starting DOS emulator");
+
         emulator = Dos(dosScreen, {
-            dosboxConf: [
-                "[autoexec]",
-                "mount c .",
-                "c:",
-                "NPTGAME.EXE"
-            ].join("\n"),
-            initFs: [{
-                path: "NPTGAME.EXE",
-                contents: executable
-            }],
+            dosboxConf: `
+        [sdl]
+        autolock=false
+
+        [dos]
+        xms=true
+        ems=true
+
+        [autoexec]
+        @echo off
+        mount c .
+        c:
+        NPTGAME.EXE
+        `,
+            initFs: [
+                {
+                    path: "NPTGAME.EXE",
+                    contents: new Uint8Array(executable)
+                }
+            ],
             autoStart: true,
             kiosk: true,
             theme: "retro",
             renderAspect: "4/3",
             imageRendering: "pixelated",
             onEvent: (event) => {
+                if (event === "emu-ready") {
+                    setStatus("Emulator ready");
+                    log("DOS emulator initialized.");
+                }
+
                 if (event === "ci-ready") {
-                    setStatus("Program running");
+                    setStatus("DOS session active");
+                    log("DOS command interface initialized.");
                 }
             }
         });
+
+        log("DOS emulator launched.");
+
 
         setStatus("Starting DOS");
         log("If the program does not start, check the emulator and compiler logs.");
