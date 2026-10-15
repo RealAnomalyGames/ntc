@@ -1,0 +1,17 @@
+PROGRAM Comparison
+
+LET first = 10
+LET second = 10
+
+CMP first, second
+JE values_equal
+
+PRINT "The values are different."
+JMP finish
+
+LABEL values_equal
+PRINT "The values are equal."
+
+LABEL finish
+EXIT 0
+END
