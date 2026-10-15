@@ -1,86 +1,82 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NPT Software 0.1</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NPT Software — Neptune Corporation</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://v8.js-dos.com/latest/js-dos.css">
 </head>
 <body>
-  <header class="topbar">
-    <div>
-      <h1>NPT Software</h1>
-      <p>Neptune Corporation · Version 0.1</p>
-    </div>
-    <span class="version">NTC GAME ENGINE</span>
-  </header>
+    <header class="title-bar">
+        <div class="brand">
+            <span class="brand-icon">N</span>
+            <span>NPT Software</span>
+        </div>
+        <span class="version">Version 0.1</span>
+    </header>
 
-  <nav class="menu" aria-label="Main menu">
-    <button id="newProject">New</button>
-    <button id="loadScript">Load NTC</button>
-    <button id="saveScript">Save NTC</button>
-    <button id="compile">Compile EXE</button>
-    <input id="fileInput" type="file" accept=".ntc"
-           hidden>
-  </nav>
+    <nav class="menu-bar">
+        <a href="../index.html">NTC Home</a>
+        <button id="new-script">New</button>
+        <button id="load-script">Open .NTC</button>
+        <button id="save-script">Save .NTC</button>
+        <button id="run-script" class="primary">Run Program</button>
+        <input id="file-input" type="file" accept=".ntc,.txt" hidden>
+    </nav>
 
-  <main class="workspace">
-    <section class="panel editor-panel">
-      <h2>NTC Script</h2>
-      <p class="hint">Write a program using Neptune Code.</p>
-      <textarea id="source" spellcheck="false"
-        aria-label="NTC source code">PROGRAM
-PRINT "WELCOME TO NPT SOFTWARE"
-PRINT "NTC IS READY."
+    <main>
+        <section class="panel">
+            <div class="panel-heading">DOS GAME SCENE</div>
+            <div id="dos-screen" class="dos-screen">
+                <div class="welcome-screen">
+                    <div class="welcome-logo">NPT SOFTWARE</div>
+                    <p>NEPTUNE CORPORATION</p>
+                    <hr>
+                    <p>NTC DOS PROGRAM RUNNER</p>
+                    <p>Ready to execute your program.</p>
+                    <p class="blink">_</p>
+                    <p class="hint">Press RUN PROGRAM to begin.</p>
+                </div>
+            </div>
+            <div class="status-bar">
+                <span id="runtime-status">Runtime: Ready</span>
+                <span>Target: DOS MZ EXE</span>
+            </div>
+        </section>
+
+        <section class="panel editor-panel">
+            <div class="panel-heading">NTC SCRIPT EDITOR</div>
+            <div class="editor-toolbar">
+                <span>Source File: <strong id="file-name">UNTITLED.NTC</strong></span>
+                <span>Language: NTC</span>
+            </div>
+            <textarea id="script-editor" spellcheck="false"
+                autocapitalize="off" autocomplete="off"
+                aria-label="NTC script editor">PROGRAM
+PRINT "HELLO FROM NPT SOFTWARE!"
 EXIT 0
 END</textarea>
-      <div class="actions">
-        <button id="downloadExe" disabled>Download EXE</button>
-      </div>
-    </section>
+        </section>
 
-    <section class="panel game-panel">
-      <div class="panel-heading">
-        <h2>DOS Game Scene</h2>
-        <span id="runtimeStatus">Runtime not connected</span>
-      </div>
+        <section class="panel output-panel">
+            <div class="panel-heading">COMPILER OUTPUT</div>
+            <pre id="compiler-output">NPT Software 0.1
+NTC compiler integration ready.
+Select Run Program to compile and launch your script.</pre>
+        </section>
+    </main>
 
-      <div class="dos-screen" role="log" aria-live="polite">
-        <pre id="dosOutput">NPT-DOS GAME SCENE
-Copyright (C) Neptune Corporation
+    <footer>
+        Neptune Corporation™ · NPT Software · Powered by NTC
+    </footer>
 
-NTC GAME ENVIRONMENT
---------------------
-Your game will appear here when
-the DOS runtime is connected.
+    <!-- Existing NTC Web Compiler build -->
+    <script src="../compiler/ntc.js"></script>
 
-C:\GAME&gt; _</pre>
-      </div>
+    <!-- DOS emulator -->
+    <script src="https://v8.js-dos.com/latest/js-dos.js"></script>
 
-      <div class="actions">
-        <button id="runGame" disabled>Run Game</button>
-        <button id="stopGame" disabled>Stop</button>
-      </div>
-
-      <p class="hint">
-        DOS execution will be enabled after emulator integration.
-      </p>
-    </section>
-  </main>
-
-  <section class="panel output-panel">
-    <h2>Build Output</h2>
-    <pre id="buildOutput">NPT Software 0.1 initialized.
-Load or edit an NTC script to begin.</pre>
-  </section>
-
-  <footer>
-    NPT Software · Developed by Neptune Corporation
-  </footer>
-
-  <!-- The existing WebAssembly compiler; do not duplicate it. -->
-  <script src="../compiler/ntc.js"></script>
-  <script src="app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
