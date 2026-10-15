@@ -5,6 +5,22 @@ const fileInput = document.getElementById("file-input");
 const fileName = document.getElementById("file-name");
 const dosScreen = document.getElementById("dos-screen");
 
+console.log("js-dos diagnostic:", {
+    Dos: typeof window.Dos,
+    emulators: typeof window.emulators,
+    page: window.location.href
+});
+
+window.addEventListener("load", () => {
+    if (typeof window.Dos !== "function") {
+        console.error(
+            "js-dos failed to expose window.Dos. Check the Network tab for js-dos.js."
+        );
+    } else {
+        console.log("js-dos player loaded successfully.");
+    }
+});
+
 let currentFileName = "UNTITLED.NTC";
 let emulator = null;
 let compilerModulePromise = null;
