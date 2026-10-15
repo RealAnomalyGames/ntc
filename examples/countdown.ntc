@@ -1,0 +1,19 @@
+PROGRAM Countdown
+
+LET counter = 5
+LET zero = 0
+LET one = 1
+
+LABEL loop_start
+CMP counter, zero
+JE finish
+
+PRINT counter
+SUB counter, one
+JMP loop_start
+
+LABEL finish
+PRINT "Liftoff!"
+
+EXIT 0
+END
