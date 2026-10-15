@@ -1,31 +1,19 @@
+"use strict";
+
 const editor = document.getElementById("script-editor");
 const output = document.getElementById("compiler-output");
 const status = document.getElementById("runtime-status");
 const fileInput = document.getElementById("file-input");
 const fileName = document.getElementById("file-name");
-const dosScreen = document.getElementById("dos-screen");
+const compileButton = document.getElementById("run-script");
+const downloadButton = document.getElementById("download-exe");
 
-console.log("js-dos diagnostic:", {
-    Dos: typeof window.Dos,
-    emulators: typeof window.emulators,
-    page: window.location.href
-});
-
-pathPrefix: "./js-dos/emulators/",
-
-window.addEventListener("load", () => {
-    if (typeof window.Dos !== "function") {
-        console.error(
-            "js-dos failed to expose window.Dos. Check the Network tab for js-dos.js."
-        );
-    } else {
-        console.log("js-dos player loaded successfully.");
-    }
-});
+const DEFAULT_SOURCE =
+    'PROGRAM\nPRINT "HELLO FROM NPT SOFTWARE!"\nEXIT 0\nEND';
 
 let currentFileName = "UNTITLED.NTC";
-let emulator = null;
 let compilerModulePromise = null;
+let lastExecutable = null;
 
 function log(message) {
     output.textContent += "\n" + message;
@@ -33,7 +21,12 @@ function log(message) {
 }
 
 function setStatus(message) {
-    status.textContent = "Runtime: " + message;
+    status.textContent = "Build: " + message;
+}
+
+function invalidateExecutable() {
+    lastExecutable = null;
+    downloadButton.disabled = true;
 }
 
 function downloadFile(name, data, type) {
@@ -43,29 +36,22 @@ function downloadFile(name, data, type) {
 
     link.href = url;
     link.download = name;
+    document.body.appendChild(link);
     link.click();
+    link.remove();
 
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-async function cleanDosScreen() {
-    if (emulator) {
-        const previousEmulator = emulator;
-        emulator = null;
-        await previousEmulator.stop();
-    }
-
-    dosScreen.replaceChildren();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 async function getCompiler() {
     if (typeof createNTCModule !== "function") {
         throw new Error(
-            "The NTC compiler module was not found. Check web/compiler/ntc.js."
+            "The NTC compiler module was not found. " +
+            "Check web/compiler/ntc.js and make sure it loads successfully."
         );
     }
 
-    if (!compilerModulePromise) {      
+    if (!compilerModulePromise) {
         compilerModulePromise = createNTCModule({
             print: (message) => {
                 log("[NTC] " + message);
@@ -73,29 +59,37 @@ async function getCompiler() {
             printErr: (message) => {
                 log("[NTC ERROR] " + message);
             }
+        }).catch((error) => {
+            // Allow a later attempt if module initialization fails.
+            compilerModulePromise = null;
+            throw error;
         });
     }
 
     return compilerModulePromise;
 }
 
-async function compileAndRun() {
+async function compileScript() {
+    if (compileButton.disabled) {
+        return;
+    }
+
     const source = editor.value;
 
-    output.textContent = "NPT Software 0.1\nPreparing NTC compiler...";
+    invalidateExecutable();
+    output.textContent = "NPT Software 0.1\nInitializing NTC compiler...";
     setStatus("Compiling");
-
-    document.getElementById("run-script").disabled = true;
+    compileButton.disabled = true;
 
     try {
         const compiler = await getCompiler();
 
-        // Remove files from an earlier compile, if present.
+        // Clear files left over from a previous compilation.
         for (const path of ["/NPTGAME.NTC", "/NPTGAME.EXE"]) {
             try {
                 compiler.FS.unlink(path);
             } catch (_) {
-                // The file may not exist yet.
+                // The file may not exist.
             }
         }
 
@@ -104,15 +98,21 @@ async function compileAndRun() {
             new TextEncoder().encode(source)
         );
 
-        log("\nCompiling NPTGAME.NTC...");
+        log("Source: " + currentFileName);
+        log("Target: DOS MZ executable");
+        log("Compiling NPTGAME.NTC...");
 
         let exitCode = 0;
 
         try {
-            exitCode = compiler.callMain([
+            const result = compiler.callMain([
                 "/NPTGAME.NTC",
                 "/NPTGAME.EXE"
             ]);
+
+            if (typeof result === "number") {
+                exitCode = result;
+            }
         } catch (error) {
             if (error && error.name === "ExitStatus") {
                 exitCode = error.status;
@@ -120,96 +120,78 @@ async function compileAndRun() {
                 throw error;
             }
         }
-   
-        if (exitCode !== 0) {
-            log("NTC compiler returned exit code: " + exitCode);
-            log("Check the compiler messages above for the actual error.");
 
-            setStatus("Compilation failed");
+        if (exitCode !== 0) {
+            log("Compilation failed with exit code " + exitCode + ".");
+            log("Review the compiler messages above and correct the source.");
+            setStatus("Failed");
             return;
         }
 
-        const executable = compiler.FS.readFile("/NPTGAME.EXE");
+        let executable;
 
-        log("Compilation completed.");
-        log("Executable size: " + executable.length + " bytes.");
-        log("Starting DOS emulator...");
-
-        
-        await cleanDosScreen();
-
-        if (typeof Dos !== "function") {
+        try {
+            executable = compiler.FS.readFile("/NPTGAME.EXE");
+        } catch (_) {
             throw new Error(
-                "js-dos did not load. Check the js-dos script URL and browser console."
+                "The compiler reported success but did not create " +
+                "NPTGAME.EXE. Check the compiler's output and arguments."
             );
         }
 
-        setStatus("Starting DOS emulator");
+        if (!executable || executable.length === 0) {
+            throw new Error("The compiler created an empty executable.");
+        }
 
-        emulator = Dos(dosScreen, {
-            dosboxConf: `
-        [sdl]
-        autolock=false
+        // Keep a separate copy for exporting.
+        lastExecutable = new Uint8Array(executable);
+        downloadButton.disabled = false;
 
-        [dos]
-        xms=true
-        ems=true
+        log("Compilation successful.");
+        log("Executable: NPTGAME.EXE");
+        log("Size: " + lastExecutable.length + " bytes.");
+        log("Select Export EXE to download the compiled program.");
 
-        [autoexec]
-        @echo off
-        mount c .
-        c:
-        NPTGAME.EXE
-        `,
-            initFs: [
-                {
-                    path: "NPTGAME.EXE",
-                    contents: new Uint8Array(executable)
-                }
-            ],
-            autoStart: true,
-            kiosk: true,
-            theme: "retro",
-            renderAspect: "4/3",
-            imageRendering: "pixelated",
-            onEvent: (event) => {
-                if (event === "emu-ready") {
-                    setStatus("Emulator ready");
-                    log("DOS emulator initialized.");
-                }
-
-                if (event === "ci-ready") {
-                    setStatus("DOS session active");
-                    log("DOS command interface initialized.");
-                }
-            }
-        });
-
-        log("DOS emulator launched.");
-
-
-        setStatus("Starting DOS");
-        log("If the program does not start, check the emulator and compiler logs.");
+        setStatus("Successful");
     } catch (error) {
         setStatus("Error");
-        log("\nERROR: " + (error.message || String(error)));
-        console.error(error);
+        log("ERROR: " + (error.message || String(error)));
+        console.error("NPT Software compilation error:", error);
     } finally {
-        document.getElementById("run-script").disabled = false;
+        compileButton.disabled = false;
     }
 }
 
-document.getElementById("run-script").addEventListener("click", compileAndRun);
+compileButton.addEventListener("click", compileScript);
 
-document.getElementById("new-script").addEventListener("click", () => {
-    if (!confirm("Discard the current editor contents? Save your script first if needed.")) {
+downloadButton.addEventListener("click", () => {
+    if (!lastExecutable) {
+        log("No compiled executable is available to export.");
         return;
     }
 
-    editor.value = 'PROGRAM\nPRINT "HELLO FROM NPT SOFTWARE!"\nEXIT 0\nEND';
+    downloadFile(
+        "NPTGAME.EXE",
+        lastExecutable,
+        "application/vnd.microsoft.portable-executable"
+    );
+
+    log("Exported NPTGAME.EXE.");
+});
+
+document.getElementById("new-script").addEventListener("click", () => {
+    if (!confirm(
+        "Discard the current editor contents? Save your script first if needed."
+    )) {
+        return;
+    }
+
+    editor.value = DEFAULT_SOURCE;
     currentFileName = "UNTITLED.NTC";
     fileName.textContent = currentFileName;
     output.textContent = "New NTC script created.";
+
+    invalidateExecutable();
     setStatus("Ready");
 });
 
@@ -219,15 +201,28 @@ document.getElementById("load-script").addEventListener("click", () => {
 
 fileInput.addEventListener("change", async () => {
     const file = fileInput.files[0];
-    if (!file) return;
 
-    editor.value = await file.text();
-    currentFileName = file.name;
-    fileName.textContent = currentFileName;
-    output.textContent = "Loaded " + file.name;
-    setStatus("Ready");
+    if (!file) {
+        return;
+    }
 
-    fileInput.value = "";
+    try {
+        editor.value = await file.text();
+        currentFileName = file.name;
+        fileName.textContent = currentFileName;
+        output.textContent = "Loaded " + file.name + ".";
+
+        invalidateExecutable();
+        setStatus("Ready");
+    } catch (error) {
+        output.textContent =
+            "ERROR: Could not read the selected file.\n" +
+            (error.message || String(error));
+
+        setStatus("Error");
+    } finally {
+        fileInput.value = "";
+    }
 });
 
 document.getElementById("save-script").addEventListener("click", () => {
@@ -235,7 +230,19 @@ document.getElementById("save-script").addEventListener("click", () => {
         ? currentFileName
         : currentFileName + ".ntc";
 
-    downloadFile(name, editor.value, "text/plain;charset=utf-8");
+    downloadFile(
+        name,
+        editor.value,
+        "text/plain;charset=utf-8"
+    );
+
+    log("Saved source file: " + name);
+});
+
+// Any source edit makes the previous build potentially outdated.
+editor.addEventListener("input", () => {
+    invalidateExecutable();
+    setStatus("Source changed");
 });
 
 setStatus("Ready");
