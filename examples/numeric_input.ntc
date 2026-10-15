@@ -1,0 +1,20 @@
+PROGRAM NumericInputTest
+
+LET choice = 0
+LET one = 1
+
+LABEL ask
+PRINT "Choose 1 or 2:"
+INPUT choice
+
+CMP choice, one
+JE first_choice
+
+PRINT "You chose something other than 1."
+EXIT 0
+
+LABEL first_choice
+PRINT "You chose 1!"
+EXIT 0
+
+END
