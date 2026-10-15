@@ -1,0 +1,86 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NPT Software 0.1</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>NPT Software</h1>
+      <p>Neptune Corporation · Version 0.1</p>
+    </div>
+    <span class="version">NTC GAME ENGINE</span>
+  </header>
+
+  <nav class="menu" aria-label="Main menu">
+    <button id="newProject">New</button>
+    <button id="loadScript">Load NTC</button>
+    <button id="saveScript">Save NTC</button>
+    <button id="compile">Compile EXE</button>
+    <input id="fileInput" type="file" accept=".ntc"
+           hidden>
+  </nav>
+
+  <main class="workspace">
+    <section class="panel editor-panel">
+      <h2>NTC Script</h2>
+      <p class="hint">Write a program using Neptune Code.</p>
+      <textarea id="source" spellcheck="false"
+        aria-label="NTC source code">PROGRAM
+PRINT "WELCOME TO NPT SOFTWARE"
+PRINT "NTC IS READY."
+EXIT 0
+END</textarea>
+      <div class="actions">
+        <button id="downloadExe" disabled>Download EXE</button>
+      </div>
+    </section>
+
+    <section class="panel game-panel">
+      <div class="panel-heading">
+        <h2>DOS Game Scene</h2>
+        <span id="runtimeStatus">Runtime not connected</span>
+      </div>
+
+      <div class="dos-screen" role="log" aria-live="polite">
+        <pre id="dosOutput">NPT-DOS GAME SCENE
+Copyright (C) Neptune Corporation
+
+NTC GAME ENVIRONMENT
+--------------------
+Your game will appear here when
+the DOS runtime is connected.
+
+C:\GAME&gt; _</pre>
+      </div>
+
+      <div class="actions">
+        <button id="runGame" disabled>Run Game</button>
+        <button id="stopGame" disabled>Stop</button>
+      </div>
+
+      <p class="hint">
+        DOS execution will be enabled after emulator integration.
+      </p>
+    </section>
+  </main>
+
+  <section class="panel output-panel">
+    <h2>Build Output</h2>
+    <pre id="buildOutput">NPT Software 0.1 initialized.
+Load or edit an NTC script to begin.</pre>
+  </section>
+
+  <footer>
+    NPT Software · Developed by Neptune Corporation
+  </footer>
+
+  <!-- The existing WebAssembly compiler; do not duplicate it. -->
+  <script src="../compiler/ntc.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
