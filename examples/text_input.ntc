@@ -1,0 +1,12 @@
+PROGRAM TextInput
+
+LET player = ""
+
+PRINT "What is your name?"
+INPUT player
+
+PRINT "Welcome, "
+PRINT player
+
+EXIT 0
+END
