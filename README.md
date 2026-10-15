@@ -2,167 +2,140 @@
   <img src="https://github.com/RealAnomalyGames/ntc/blob/main/logo/nptlogo.png" alt="NTC Logo">
 </p>
 
-# Neptune Code (NTC)
+# NTC — Neptune Code
 
-**NTC 0.1 — Official Release**
+**NTC (Neptune Code)** is a lightweight, assembly-inspired programming language developed by Neptune Corporation. It is designed to provide a straightforward way to write programs and compile them into executable files for DOS.
 
-Neptune Code (NTC) is a lightweight, assembly-inspired programming language developed by Neptune Corporation™. Designed for simplicity and accessibility, NTC lets programmers create small programs that compile into executable applications for compatible 16-bit DOS environments.
+The project includes the NTC compiler, a browser-based compiler interface, and NPT Software, a lightweight environment for writing NTC programs and exporting DOS executables.
 
-NTC combines straightforward instructions, variables, arithmetic, user input, and conditional branching in a readable source-code format.
+## Project Overview
 
-## Release Information
+- **Language:** Neptune Code (NTC)
+- **Developer:** Neptune Corporation
+- **Compiler implementation:** C
+- **Compiler target:** 16-bit x86 DOS MZ executables
+- **Web technologies:** HTML, CSS, and JavaScript for the browser-based tools
+- **Development philosophy:** Simple, lightweight, and accessible
 
-| Property | Details |
-|---|---|
-| Product | Neptune Code |
-| Abbreviation | NTC |
-| Version | 0.1 |
-| Release status | Official release |
-| Compiler implementation | C |
-| Executable format | 16-bit DOS MZ EXE |
-| Source extension | `.ntc` |
-| Output extension | `.exe` |
-| Web Compiler | Available through the NTC Web Compiler website |
-| Developer | Neptune Corporation™ |
+## Tools
 
-## Features
+### NTC Web Compiler
 
-- **Simple syntax:** Write programs using readable, assembly-inspired instructions.
-- **Variables:** Store numeric and text values.
-- **Arithmetic:** Perform addition, subtraction, multiplication, and division.
-- **User input:** Accept text and numeric input.
-- **Output:** Display messages and variable values.
-- **Labels and jumps:** Control program flow using labels and jump instructions.
-- **Comparisons:** Compare numeric values and branch according to the result.
-- **DOS executables:** Compile NTC source files into 16-bit DOS MZ executables.
-- **Browser-based compilation:** Use the NTC Web Compiler without installing the native compiler locally.
-- **Examples and documentation:** Learn the language through included sample programs and reference material.
+The NTC Web Compiler provides a browser-based interface for compiling NTC source code.
+
+- Compile NTC source files in the browser.
+- Generate DOS MZ executable files.
+- Experiment with the language without setting up the compiler locally.
+
+**[Open the NTC Web Compiler](https://realanomalygames.github.io/ntc/compiler/)**
+
+### NPT Software 0.1
+
+NPT Software is a lightweight NTC development tool built around the existing NTC compiler.
+
+Features include:
+
+- An integrated NTC source editor.
+- Create, open, and save `.NTC` source files.
+- Compile NTC programs into DOS `.EXE` files.
+- Export compiled executables for use outside the browser.
+- Compiler output and error reporting.
+
+NPT Software does not run DOS executables inside the browser. Compiled programs can be exported and run separately in a compatible DOS environment.
+
+**[Open NPT Software](https://realanomalygames.github.io/ntc/npt-software/)**
 
 ## Getting Started
 
-### Option 1: Use the NTC Web Compiler
+### Your First NTC Program
 
-Open the NTC Web Compiler website and select a `.ntc` source file from your computer.
+Create a file named `HELLO.NTC` and enter the following code:
 
-1. Choose your NTC source file.
-2. Click **Compile Program**.
-3. Review the compiler output.
-4. Download the generated `.exe` if compilation succeeds.
-5. Run the executable in a compatible DOS environment.
-
-Compilation takes place in your browser using the WebAssembly version of the NTC compiler.
-
-### Option 2: Build the Native Compiler
-
-You can build the compiler from source using a compatible C compiler.
-
-For example, with GCC:
-
-```bash
-gcc -std=c11 -O2 -Wall -Wextra -Werror compiler/ntc.c -o build/ntc
-```
-
-Create the output directory first if it does not exist:
-
-```bash
-mkdir -p build
-```
-
-Compile an example program:
-
-```bash
-./build/ntc examples/hello.ntc build/hello.exe
-```
-
-Run the generated executable in a compatible DOS environment.
-
-The commands above assume a Unix-like shell with GCC installed.
-
-## Example Program
-
-Save the following as `hello.ntc`:
-
-```text
-PROGRAM hello
-
-PRINT "Hello from Neptune Code!"
-PRINT "Welcome to NTC 0.1."
-
+```ntc
+PROGRAM
+PRINT "HELLO FROM NTC!"
 EXIT 0
 END
 ```
 
-Compile it using the NTC compiler. The resulting DOS executable displays the messages when run in a compatible environment.
+### Compile and Run
 
-## Language Reference
+1. Open the NTC Web Compiler or NPT Software.
+2. Enter the program into the source editor.
+3. Compile the source code into a DOS executable.
+4. Export the resulting `.EXE` file.
+5. Run the executable in a compatible DOS environment.
 
-NTC 0.1 supports the following core instructions:
+The compiler produces DOS MZ executables. Successful compilation does not replace testing the resulting program in its intended environment.
+
+## Language Features
+
+NTC 0.1 supports the following instructions:
 
 | Instruction | Purpose |
 |---|---|
-| `PROGRAM` | Declares the program |
-| `LET` | Declares and initializes a variable |
-| `MOV` | Assigns a numeric value |
-| `ADD` | Adds a value |
-| `SUB` | Subtracts a value |
-| `MUL` | Multiplies a value |
-| `DIV` | Divides a value |
+| `PROGRAM` | Begins a program |
+| `LET` | Defines a variable with a value |
+| `MOV` | Moves a value between variables |
+| `ADD` | Addition |
+| `SUB` | Subtraction |
+| `MUL` | Multiplication |
+| `DIV` | Division |
 | `PRINT` | Displays text or a variable |
-| `INPUT` | Accepts user input |
+| `INPUT` | Accepts input |
 | `LABEL` | Defines a jump target |
 | `JMP` | Jumps to a label |
-| `CMP` | Compares numeric values |
+| `CMP` | Compares values |
 | `JE` | Jumps when values are equal |
 | `JNE` | Jumps when values are not equal |
-| `JA` | Jumps when the first value is above the second |
-| `JB` | Jumps when the first value is below the second |
-| `EXIT` | Sets the program's exit instruction and status |
-| `END` | Marks the end of the program |
+| `JA` | Conditional jump for an above comparison |
+| `JB` | Conditional jump for a below comparison |
+| `EXIT` | Ends the program with an exit code |
+| `END` | Marks the end of the source program |
 
-For full syntax, supported value types, restrictions, and examples, see the documentation in the `docs/` directory.
+Consult the language documentation in this repository for the exact syntax, restrictions, and usage examples.
 
-## Examples
+## Compatibility
 
-The `examples/` directory contains sample programs demonstrating NTC's supported features, including:
+NTC generates 16-bit x86 DOS MZ executables. The compiler and its output should be distinguished from the environment used to run the resulting programs.
 
-- `hello.ntc` — basic text output
-- `arithmetic.ntc` — arithmetic operations
-- `variables.ntc` — variables and assignments
-- `text_input.ntc` — text input
-- `numeric_input.ntc` — numeric input
-- `branching.ntc` — labels and jumps
-- `comparison.ntc` — conditional comparisons
-- `countdown.ntc` — a countdown program
+NTC-generated executables have been tested successfully in **MS-DOS 6.22**.
 
-Check the repository for the complete set of examples.
+Other DOS versions and DOS-compatible environments may work, but compatibility should be verified through testing.
 
-## Documentation
+## Repository Structure
 
-- [`GETTING_STARTED.md`](docs/GETTING_STARTED.md) — installation and first steps
-- [`LANGUAGE_REFERENCE.md`](docs/LANGUAGE_REFERENCE.md) — language syntax and instructions
-- [`EXAMPLES.md`](docs/EXAMPLES.md) — example program guide
-- [`LIMITATIONS.md`](docs/LIMITATIONS.md) — known restrictions and compatibility information
+```text
+ntc/
+├── web/
+│   ├── compiler/       # NTC Web Compiler
+│   └── npt-software/   # NPT Software
+├── README.md
+└── ...
+```
 
-## Compatibility and Limitations
+This is a simplified overview; additional source files, documentation, and build configuration are maintained in the repository.
 
-NTC 0.1 targets **16-bit DOS MZ executables**. It is not a Windows PE compiler and does not directly produce native 32-bit or 64-bit Windows applications.
+## Development
 
-Programs must follow the language rules and limitations documented for this release. Numeric values use unsigned 16-bit arithmetic, and text input and supported string contents have restrictions.
+NTC is developed and maintained by Neptune Corporation. Development takes place alongside the project's compiler, documentation, and browser-based tools.
 
-Use a compatible DOS environment to run generated executables. Compatibility with other operating systems or DOS implementations should not be assumed unless tested.
+When reporting a problem, include the NTC source code that reproduces it, the compiler output, and the environment in which the resulting executable was tested. Do not include private information in bug reports.
 
 ## Project Status
 
-**NTC 0.1 is officially released.**
+NTC 0.1 and NPT Software 0.1 provide the initial programming and compilation workflow.
 
-The Build 007 release candidate has completed testing of the official `.ntc` examples, with each example successfully producing an executable.
+The current focus is on maintaining reliable compilation, documenting the language, and improving the development experience.
 
-Future versions may introduce additional instructions, compiler improvements, expanded platform support, and other features. Such additions are not part of NTC 0.1 unless explicitly documented.
+## Links
 
-## Credits
+- [NTC Web Compiler](https://realanomalygames.github.io/ntc/compiler/)
+- [NPT Software](https://realanomalygames.github.io/ntc/npt-software/)
+- [NTC GitHub Repository](https://github.com/realanomalygames/ntc)
 
-**Developed by Neptune Corporation™**
+---
 
-Neptune Code is part of the Neptune software ecosystem.
+**NTC — Neptune Code**
 
-Copyright © Neptune Corporation™. All rights reserved.
+Developed by **Neptune Corporation™**.
