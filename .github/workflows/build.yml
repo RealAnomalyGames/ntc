@@ -23,9 +23,9 @@ jobs:
           gcc -std=c11 -O2 -Wall -Wextra -Werror \
             compiler/ntc.c -o build/ntc
 
-      - name: Compile arithmetic example
+      - name: Compile numeric input example
         run: |
-          ./build/ntc examples/hello.ntc build/hello.exe
+          ./build/ntc examples/numeric_input.ntc build/numeric_input.exe
 
       - name: Verify DOS MZ header and file size
         run: |
