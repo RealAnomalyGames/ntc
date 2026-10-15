@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#14243b">
     <title>NPT Software — Neptune Corporation</title>
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="https://v8.js-dos.com/latest/js-dos.css">
 </head>
 <body>
     <header class="title-bar">
@@ -16,44 +16,66 @@
         <span class="version">Version 0.1</span>
     </header>
 
-    <nav class="menu-bar">
+    <nav class="menu-bar" aria-label="Main menu">
         <a href="../index.html">NTC Home</a>
-        <button id="new-script">New</button>
-        <button id="load-script">Open .NTC</button>
-        <button id="save-script">Save .NTC</button>
-        <button id="run-script" class="primary">Run Program</button>
+        <button id="new-script" type="button">New</button>
+        <button id="load-script" type="button">Open .NTC</button>
+        <button id="save-script" type="button">Save .NTC</button>
+        <button id="run-script" class="primary" type="button">
+            Compile EXE
+        </button>
+        <button id="download-exe" type="button" disabled>
+            Export EXE
+        </button>
         <input id="file-input" type="file" accept=".ntc,.txt" hidden>
     </nav>
 
     <main>
         <section class="panel">
-            <div class="panel-heading">DOS GAME SCENE</div>
+            <div class="panel-heading">DOS GAME SCENE · PREVIEW</div>
+
             <div id="dos-screen" class="dos-screen">
                 <div class="welcome-screen">
                     <div class="welcome-logo">NPT SOFTWARE</div>
                     <p>NEPTUNE CORPORATION</p>
                     <hr>
-                    <p>NTC DOS PROGRAM RUNNER</p>
-                    <p>Ready to execute your program.</p>
+                    <p>NTC DOS DEVELOPMENT ENVIRONMENT</p>
+                    <p>Ready to build your program.</p>
                     <p class="blink">_</p>
-                    <p class="hint">Press RUN PROGRAM to begin.</p>
+                    <p class="hint">
+                        This is a static preview. DOS programs are exported
+                        for execution in a compatible DOS environment.
+                    </p>
                 </div>
             </div>
+
             <div class="status-bar">
-                <span id="runtime-status">Runtime: Ready</span>
-                <span>Target: DOS MZ EXE</span>
+                <span id="runtime-status" role="status" aria-live="polite">
+                    Build: Ready
+                </span>
+                <span>Output: DOS MZ EXE</span>
             </div>
         </section>
 
         <section class="panel editor-panel">
             <div class="panel-heading">NTC SCRIPT EDITOR</div>
+
             <div class="editor-toolbar">
-                <span>Source File: <strong id="file-name">UNTITLED.NTC</strong></span>
+                <span>
+                    Source File:
+                    <strong id="file-name">UNTITLED.NTC</strong>
+                </span>
                 <span>Language: NTC</span>
             </div>
-            <textarea id="script-editor" spellcheck="false"
-                autocapitalize="off" autocomplete="off"
-                aria-label="NTC script editor">PROGRAM
+
+            <textarea
+                id="script-editor"
+                spellcheck="false"
+                autocapitalize="off"
+                autocomplete="off"
+                autocorrect="off"
+                aria-label="NTC script editor"
+            >PROGRAM
 PRINT "HELLO FROM NPT SOFTWARE!"
 EXIT 0
 END</textarea>
@@ -63,7 +85,8 @@ END</textarea>
             <div class="panel-heading">COMPILER OUTPUT</div>
             <pre id="compiler-output">NPT Software 0.1
 NTC compiler integration ready.
-Select Run Program to compile and launch your script.</pre>
+Edit your script, then select Compile EXE.
+The compiled DOS executable can be exported separately.</pre>
         </section>
     </main>
 
@@ -71,14 +94,8 @@ Select Run Program to compile and launch your script.</pre>
         Neptune Corporation™ · NPT Software · Powered by NTC
     </footer>
 
-    <!-- Existing NTC Web Compiler build -->
+    <!-- Load the existing NTC compiler once. -->
     <script src="../compiler/ntc.js"></script>
-
-    <!-- DOS emulator -->     
-    <link rel="stylesheet" href="js-dos/js-dos.css">
-
-    <script src="../compiler/ntc.js"></script>
-    <script src="js-dos/js-dos.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
