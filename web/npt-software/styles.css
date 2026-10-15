@@ -1,8 +1,15 @@
 :root {
   color-scheme: dark;
-  font-family: Consolas, "Courier New", monospace;
-  background: #10131a;
-  color: #e5eaf2;
+  font-family: Tahoma, Verdana, Arial, sans-serif;
+  background: #dce6f1;
+  color: #172d46;
+
+  --neptune-blue: #1769aa;
+  --neptune-blue-light: #438ed0;
+  --neptune-blue-dark: #104675;
+  --panel-blue: #edf4fc;
+  --border-blue: #8baed0;
+  --text-muted: #60758b;
 }
 
 * {
@@ -12,73 +19,94 @@
 body {
   margin: 0;
   min-height: 100vh;
+  background:
+    linear-gradient(180deg, #edf4fb 0%, #cbdced 100%);
 }
 
-button {
-  font: inherit;
-  padding: 9px 13px;
-  color: #e5eaf2;
-  background: #252d3b;
-  border: 1px solid #414d60;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-button:hover:not(:disabled) {
-  background: #35445a;
-}
-
-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
+/* Main application header */
 
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 24px;
-  background: #171d28;
-  border-bottom: 1px solid #303949;
-}
-
-h1, h2, p {
-  margin-top: 0;
+  padding: 20px 24px;
+  color: #fff;
+  background:
+    linear-gradient(
+      180deg,
+      #4795d5 0%,
+      #2379bd 45%,
+      #14578f 100%
+    );
+  border-bottom: 3px solid #0c426f;
+  box-shadow: 0 2px 5px #163d5c35;
 }
 
 h1 {
-  margin-bottom: 5px;
-  font-size: 23px;
-}
-
-h2 {
-  font-size: 16px;
-  margin-bottom: 12px;
-}
-
-.topbar p, .hint {
-  color: #9ba8ba;
-  font-size: 12px;
+  margin: 0 0 5px;
+  font-size: 25px;
+  font-weight: bold;
+  letter-spacing: 0.3px;
+  text-shadow: 1px 1px 2px #103e68;
 }
 
 .topbar p {
-  margin-bottom: 0;
+  margin: 0;
+  color: #e1efff;
+  font-size: 12px;
 }
 
 .version {
-  color: #8bc6ff;
+  padding: 7px 10px;
+  color: #fff;
+  background: #104c7d;
+  border: 1px solid #76b5e9;
+  border-radius: 3px;
   font-size: 11px;
+  font-weight: bold;
 }
+
+/* Classic desktop-style menu */
 
 .menu {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 12px 24px;
-  background: #141923;
-  border-bottom: 1px solid #303949;
+  gap: 6px;
+  padding: 10px 24px;
+  background: #eaf2fa;
+  border-bottom: 1px solid #a4bfd9;
 }
+
+button {
+  padding: 8px 13px;
+  color: #163c60;
+  background:
+    linear-gradient(180deg, #fff 0%, #e0ebf7 100%);
+  border: 1px solid #8caac8;
+  border-radius: 3px;
+  font: bold 12px Tahoma, Verdana, sans-serif;
+  box-shadow: inset 0 1px 0 #fff;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  color: #fff;
+  background:
+    linear-gradient(180deg, #4898d8 0%, #1766a5 100%);
+  border-color: #14558b;
+}
+
+button:active:not(:disabled) {
+  background: #12548a;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Editor workspace */
 
 .workspace {
   display: grid;
@@ -90,31 +118,23 @@ h2 {
 .panel {
   min-width: 0;
   padding: 16px;
-  background: #171d28;
-  border: 1px solid #303949;
-  border-radius: 8px;
+  background: var(--panel-blue);
+  border: 1px solid var(--border-blue);
+  border-radius: 4px;
+  box-shadow: 0 2px 5px #254e7220;
+}
+
+h2 {
+  margin: 0 0 12px;
+  color: #174f7f;
+  font-size: 15px;
+  font-weight: bold;
 }
 
 .hint {
+  color: var(--text-muted);
+  font-size: 12px;
   line-height: 1.5;
-}
-
-textarea {
-  display: block;
-  width: 100%;
-  min-height: 300px;
-  resize: vertical;
-  padding: 12px;
-  color: #b8f5bd;
-  background: #080b10;
-  border: 1px solid #354153;
-  border-radius: 5px;
-  font: 14px/1.6 Consolas, "Courier New", monospace;
-  tab-size: 4;
-}
-
-textarea:focus {
-  outline: 1px solid #72a9ef;
 }
 
 .panel-heading {
@@ -125,27 +145,62 @@ textarea:focus {
 }
 
 #runtimeStatus {
-  color: #e7bd78;
+  color: #795b24;
   font-size: 11px;
   text-align: right;
 }
+
+/* NTC source editor */
+
+textarea {
+  display: block;
+  width: 100%;
+  min-height: 300px;
+  padding: 12px;
+  resize: vertical;
+  color: #dcecff;
+  background: #10243a;
+  border: 1px solid #557da4;
+  border-radius: 3px;
+  font: 14px/1.6 Consolas, "Courier New", monospace;
+  tab-size: 4;
+}
+
+textarea:focus {
+  outline: 2px solid #4798d8;
+  outline-offset: 1px;
+}
+
+/* DOS viewport: intentionally black and grey */
 
 .dos-screen {
   min-height: 300px;
   padding: 18px;
   overflow: auto;
-  color: #b7ffb7;
-  background: #050805;
-  border: 1px solid #334b34;
-  border-radius: 5px;
+  color: #d0d0d0;
+  background: #000;
+  border: 3px solid #777;
+  border-top-color: #444;
+  border-left-color: #444;
+  border-radius: 0;
+  box-shadow:
+    inset 2px 2px 7px #000,
+    0 0 0 1px #aaa;
 }
 
-.dos-screen pre, .output-panel pre {
+.dos-screen pre,
+.output-panel pre {
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font: 14px/1.6 Consolas, "Courier New", monospace;
 }
+
+.dos-screen pre {
+  color: #c8c8c8;
+}
+
+/* Controls beneath the viewport */
 
 .actions {
   display: flex;
@@ -154,21 +209,33 @@ textarea:focus {
   margin-top: 12px;
 }
 
+/* Build output */
+
 .output-panel {
   margin: 0 20px 20px;
+  background: #eaf2fa;
 }
 
 .output-panel pre {
-  color: #b8c5d7;
+  padding: 12px;
+  color: #d0dbea;
+  background: #17283b;
+  border: 1px solid #59738e;
+  border-radius: 3px;
 }
+
+/* Footer */
 
 footer {
   padding: 18px;
+  color: #526f8b;
+  background: #d5e3f1;
+  border-top: 1px solid #a4bfd9;
   text-align: center;
-  color: #8290a3;
-  font-size: 12px;
-  border-top: 1px solid #303949;
+  font-size: 11px;
 }
+
+/* Smaller screens */
 
 @media (max-width: 760px) {
   .workspace {
@@ -185,7 +252,7 @@ footer {
   }
 
   .menu {
-    padding: 12px 16px;
+    padding: 10px 16px;
   }
 
   .version {
