@@ -1480,7 +1480,9 @@ static int emit_instruction(const Instruction *ins)
         /* If above, skip the JMP. */
         return emit_conditional_jump(0x77, ins->label_index);
 
-    return 0;
+    default:
+        return 0;
+    }
 }
 
 /* --------------------------------------------------------- */
