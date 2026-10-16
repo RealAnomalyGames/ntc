@@ -1,14 +1,18 @@
-# NTC Language Reference
+# Flix Language Reference
 
-**Language:** Neptune Code (NTC)  
-**Executable target:** 16-bit DOS MZ
+**Version:** 0.2  
+**Language developer:** Neptune Corporation  
+**Engine:** NPT Software  
+**Compiler source:** `compiler/ntc.c`
+
+Flix is an instruction-oriented programming language that compiles programs into 16-bit x86 DOS MZ executables. This document describes the language syntax and instructions available in Flix 0.2.
 
 ## 1. Program Structure
 
-Every NTC source file must contain a program declaration and a final exit instruction.
+A Flix program begins with `PROGRAM` and ends with `END`. The final instruction before `END` must be `EXIT`.
 
-```ntc
-PROGRAM Example
+```text
+PROGRAM program_name
 
 PRINT "Hello, world!"
 
@@ -16,321 +20,392 @@ EXIT 0
 END
 ```
 
-### `PROGRAM name`
+### Structural keywords
 
-Declares the program name.
+| Keyword | Purpose |
+|---|---|
+| `PROGRAM name` | Declares the program's name. |
+| `END` | Marks the end of the source program. |
+| `EXIT code` | Terminates the program with an exit code from 0 to 255. |
 
-```ntc
-PROGRAM Example
-```
+**Rule:** `EXIT` must be the last instruction before `END`. Do not place labels, subroutines, or other instructions between `EXIT` and `END`.
 
-The name must be a valid identifier supported by the compiler.
+## 2. Syntax Conventions
 
-### `EXIT code`
+Examples in this document use these conventions:
 
-Terminates the program with an exit code from 0 to 255.
+- `name` represents a valid identifier.
+- `value` represents a numeric value or a supported operand.
+- `label` represents a label name.
+- Quoted text, such as `"Hello"`, represents a string literal.
+- Keywords and instruction names are written in uppercase for consistency.
 
-```ntc
-EXIT 0
-```
-
-An exit code of `0` conventionally indicates successful completion.
-
-The compiler requires one `EXIT` instruction, immediately followed by `END`. No other instructions or labels may appear after `EXIT`.
-
-### `END`
-
-Marks the end of the source program.
-
-## 2. Comments and Whitespace
-
-Blank lines may be used to organize programs. The compiler supports source comments according to its implemented comment syntax. Check the compiler source if you need the exact comment markers.
-
-Instruction keywords are written in uppercase in the examples throughout this reference.
+Use commas to separate operands where shown. Follow the exact operand structure of each instruction.
 
 ## 3. Variables
 
-NTC supports numeric and text variables.
+### `LET`
 
-### Numeric variables
+Declares a variable and assigns its initial value.
 
-Declare a numeric variable with an integer initial value:
-
-```ntc
-LET score = 100
-LET lives = 3
-LET zero = 0
-```
-
-Numeric values are unsigned 16-bit integers ranging from `0` to `65535`.
-
-### Text variables
-
-Declare a text variable with an empty string:
-
-```ntc
-LET player = ""
-LET command = ""
-```
-
-Text variables use a fixed-size input buffer. The current text-input buffer supports up to 127 characters.
-
-Text variables are used with `INPUT` and `PRINT`.
-
-### Variable naming
-
-Variable names must follow the identifier rules enforced by the compiler. Declare variables before using them.
-
-## 4. Assignment
-
-### `MOV destination, source`
-
-Copies a numeric value into a numeric destination variable.
-
-```ntc
-LET source = 25
-LET destination = 0
-
-MOV destination, source
-PRINT destination
-```
-
-Output:
+Numeric syntax:
 
 ```text
-25
+LET name = integer
 ```
 
-Assignment replaces the destination's previous value. It does not add the values together.
+Example:
 
-## 5. Arithmetic
-
-Arithmetic instructions modify a numeric destination variable.
-
-### `ADD destination, operand`
-
-Adds the operand to the destination.
-
-```ntc
-LET value = 10
-ADD value, 5
-PRINT value
+```text
+LET SCORE = 100
 ```
 
-Result: `15`.
+Numeric values range from 0 to 65535.
 
-### `SUB destination, operand`
+Text syntax:
 
-Subtracts the operand from the destination.
-
-```ntc
-LET value = 10
-SUB value, 3
-PRINT value
+```text
+LET name = ""
 ```
 
-Result: `7`.
+Example:
 
-### `MUL destination, operand`
-
-Multiplies the destination by the operand.
-
-```ntc
-LET value = 10
-MUL value, 3
-PRINT value
+```text
+LET NAME = ""
 ```
 
-Result: `30`.
+Text variables are initialized with an empty string.
 
-### `DIV destination, operand`
+### `MOV`
 
-Divides the destination by the operand using integer division.
+Copies a value from a source operand into a destination variable.
 
-```ntc
-LET value = 20
-DIV value, 4
-PRINT value
+```text
+MOV destination, source
 ```
 
-Result: `5`.
+Example:
 
-Division by zero is guarded against by the compiler-generated program.
+```text
+LET SOURCE = 42
+LET TARGET = 0
 
-Numeric arithmetic uses unsigned 16-bit values. Arithmetic results wrap modulo 65,536 where applicable.
-
-## 6. Output
-
-### `PRINT "text"`
-
-Displays a string literal.
-
-```ntc
-PRINT "Welcome to NTC!"
+MOV TARGET, SOURCE
+PRINT TARGET
 ```
 
-The current compiler restricts characters permitted inside string literals. In particular, embedded double quotes and dollar signs are not accepted by the existing literal parser.
+The example prints `42`.
 
-### `PRINT variable`
+## 4. Arithmetic Instructions
 
-Displays the value of a variable.
+Arithmetic instructions operate on numeric variables.
 
-For a numeric variable:
+| Instruction | Syntax | Purpose |
+|---|---|---|
+| `ADD` | `ADD destination, operand` | Adds an operand to the destination. |
+| `SUB` | `SUB destination, operand` | Subtracts an operand from the destination. |
+| `MUL` | `MUL destination, operand` | Multiplies the destination by an operand. |
+| `DIV` | `DIV destination, operand` | Divides the destination by an operand. |
 
-```ntc
-LET score = 42
-PRINT score
+Example:
+
+```text
+PROGRAM ARITHMETIC
+
+LET VALUE = 10
+
+ADD VALUE, 5
+SUB VALUE, 2
+MUL VALUE, 3
+DIV VALUE, 3
+
+PRINT VALUE
+
+EXIT 0
+END
 ```
 
-The number is displayed in decimal notation.
+The final value is `13`.
 
-For a text variable:
+Division by zero should be avoided. Consult the compiler's current implementation and tests for precise arithmetic edge-case behavior.
 
-```ntc
-LET player = ""
-INPUT player
-PRINT player
+## 5. Output Instructions
+
+### `PRINT` with a string literal
+
+```text
+PRINT "text"
 ```
 
-The contents of the text variable are displayed.
+Example:
 
-Output operations terminate their displayed lines with a newline.
+```text
+PRINT "Hello, world!"
+```
 
-## 7. Input
+### `PRINT` with a variable
 
-### `INPUT text_variable`
+```text
+PRINT variable
+```
 
-Reads text from the keyboard into a previously declared text variable.
+Example:
 
-```ntc
-LET player = ""
+```text
+LET SCORE = 100
+PRINT SCORE
+```
+
+### Printing text alongside a text variable
+
+Flix supports text variables and text-variable output functionality. For example:
+
+```text
+LET NAME = ""
+
+INPUT NAME
+PRINT "Hello, "
+PRINT NAME
+```
+
+This example reads text into `NAME` and prints a greeting.
+
+## 6. Input Instructions
+
+### `INPUT`
+
+Reads user input into a text variable.
+
+```text
+INPUT variable
+```
+
+Example:
+
+```text
+PROGRAM USER_INPUT
+
+LET NAME = ""
 
 PRINT "Enter your name:"
-INPUT player
-PRINT player
+INPUT NAME
+
+PRINT NAME
+
+EXIT 0
+END
 ```
 
-The text input buffer supports up to 127 characters.
+The variable should be declared as a text variable before it is used with `INPUT`.
 
-### `INPUT numeric_variable`
+## 7. Labels
 
-Reads a decimal number into a previously declared numeric variable.
+A label defines a named destination in a program.
 
-```ntc
-LET choice = 0
-
-PRINT "Enter a number:"
-INPUT choice
-PRINT choice
+```text
+LABEL name
 ```
 
-Valid values range from `0` to `65535`. Invalid numeric input is rejected by the generated program's numeric-input validation.
+Example:
 
-Numeric input is useful for menu selections and other simple interactive programs.
-
-## 8. Labels and Control Flow
-
-### `LABEL name`
-
-Defines a location within the program.
-
-```ntc
-LABEL start
-PRINT "Program started."
+```text
+LABEL DESTINATION
+PRINT "Reached destination"
 ```
 
-Labels can be jump targets.
+Labels can be referenced before their definitions, allowing forward references. Each label used by a jump or subroutine call must be defined.
 
-### `JMP name`
+## 8. Unconditional Jumps
+
+### `JMP`
 
 Transfers execution to a label.
 
-```ntc
-JMP start
+```text
+JMP label
 ```
 
-A backward jump can be used to implement a loop.
+Example:
 
-### `CMP left, right`
+```text
+PROGRAM JUMP_EXAMPLE
 
-Compares numeric operands. The comparison result is used by the conditional jump instructions that follow.
+PRINT "Start"
+JMP FINISH
 
-```ntc
-LET first = 10
-LET second = 10
+PRINT "Skipped"
 
-CMP first, second
-JE equal
+LABEL FINISH
+PRINT "Finished"
 
-PRINT "Different"
-JMP finish
-
-LABEL equal
-PRINT "Equal"
-
-LABEL finish
 EXIT 0
 END
 ```
 
-`CMP` currently compares numeric values, not text strings.
+Expected output:
 
-### `JE name`
+```text
+Start
+Finished
+```
 
-Jumps to a label when the most recent comparison found the operands equal.
+## 9. Comparisons
 
-### `JNE name`
+### `CMP`
 
-Jumps to a label when the most recent comparison found the operands not equal.
+Compares two operands for use by conditional jumps.
 
-### `JA name`
+```text
+CMP left, right
+```
 
-Jumps to a label when the first compared unsigned value is above the second.
+Operands can be supported numeric literals or declared numeric variables.
 
-### `JB name`
+Example:
 
-Jumps to a label when the first compared unsigned value is below the second.
+```text
+LET SCORE = 100
+CMP SCORE, 100
+JE MATCH
+```
 
-Conditional jumps depend on the most recent comparison. Place them immediately after the intended `CMP` unless another supported instruction is deliberately used between them.
+`CMP` establishes the comparison result; a following conditional jump determines whether execution transfers to its target label.
 
-## 9. Example: Menu Selection
+## 10. Conditional Jumps
 
-```ntc
-PROGRAM Menu
+Flix 0.2 supports the following conditional jump instructions.
 
-LET choice = 0
-LET one = 1
+| Instruction | Condition |
+|---|---|
+| `JE label` | Jump if equal. |
+| `JNE label` | Jump if not equal. |
+| `JA label` | Jump if above, using unsigned comparison. |
+| `JB label` | Jump if below, using unsigned comparison. |
+| `JAE label` | Jump if above or equal, using unsigned comparison. |
+| `JBE label` | Jump if below or equal, using unsigned comparison. |
 
-PRINT "1 - Start"
-PRINT "2 - Quit"
-INPUT choice
+Example:
 
-CMP choice, one
-JE start_game
+```text
+PROGRAM COMPARISON
 
-PRINT "You selected something other than 1."
-JMP finish
+LET VALUE = 25
 
-LABEL start_game
-PRINT "Starting..."
+CMP VALUE, 25
+JE MATCH
 
-LABEL finish
+PRINT "No match"
+JMP FINISH
+
+LABEL MATCH
+PRINT "Match found"
+
+LABEL FINISH
 EXIT 0
 END
 ```
 
-This example demonstrates numeric input and conditional branching.
+Expected output:
 
-## 10. Compilation
-
-Compile an NTC program using the host compiler:
-
-```bash
-./build/ntc source.ntc output.exe
+```text
+Match found
 ```
 
-The output is a 16-bit DOS MZ executable.
+The `JA`, `JB`, `JAE`, and `JBE` instructions use **unsigned** comparisons. They should not be interpreted as signed-integer comparisons.
 
-## 11. Unsupported Features
+## 11. Subroutines
 
-NTC does not currently provide general-purpose string comparisons, functions, arrays, structures, or a high-level `FOR` or `WHILE` statement. Refer to [LIMITATIONS.md](LIMITATIONS.md) for the current scope and target restrictions.
+Flix 0.2 introduces `CALL` and `RET` for subroutine execution.
+
+### `CALL`
+
+Transfers execution to a label while preserving the return address.
+
+```text
+CALL label
+```
+
+### `RET`
+
+Returns to the instruction immediately following the most recent corresponding `CALL`.
+
+```text
+RET
+```
+
+### Complete example
+
+```text
+PROGRAM SUBROUTINE_TEST
+
+CALL GREETING
+CALL GREETING
+JMP MAIN_END
+
+LABEL GREETING
+PRINT "Hello from the subroutine"
+RET
+
+LABEL MAIN_END
+PRINT "Back in the main program"
+
+EXIT 0
+END
+```
+
+Expected output:
+
+```text
+Hello from the subroutine
+Hello from the subroutine
+Back in the main program
+```
+
+A subroutine can be called repeatedly. Use `RET` to return from a called subroutine, and use a jump to prevent normal execution from falling through into the subroutine body.
+
+A `RET` without a valid corresponding call is not a normal program-termination mechanism. Use `EXIT` to terminate the program.
+
+## 12. Complete Instruction Summary
+
+| Instruction | Syntax | Description |
+|---|---|---|
+| `PROGRAM` | `PROGRAM name` | Begins a program declaration. |
+| `LET` | `LET name = value` | Declares and initializes a variable. |
+| `MOV` | `MOV destination, source` | Copies a value. |
+| `ADD` | `ADD destination, operand` | Adds to a numeric variable. |
+| `SUB` | `SUB destination, operand` | Subtracts from a numeric variable. |
+| `MUL` | `MUL destination, operand` | Multiplies a numeric variable. |
+| `DIV` | `DIV destination, operand` | Divides a numeric variable. |
+| `PRINT` | `PRINT "text"` or `PRINT variable` | Outputs text or a variable. |
+| `INPUT` | `INPUT variable` | Reads text input. |
+| `LABEL` | `LABEL name` | Defines a control-flow destination. |
+| `JMP` | `JMP label` | Jumps unconditionally. |
+| `CMP` | `CMP left, right` | Compares two operands. |
+| `JE` | `JE label` | Jumps if equal. |
+| `JNE` | `JNE label` | Jumps if not equal. |
+| `JA` | `JA label` | Jumps if unsigned above. |
+| `JB` | `JB label` | Jumps if unsigned below. |
+| `JAE` | `JAE label` | Jumps if unsigned above or equal. |
+| `JBE` | `JBE label` | Jumps if unsigned below or equal. |
+| `CALL` | `CALL label` | Calls a subroutine. |
+| `RET` | `RET` | Returns from a subroutine. |
+| `EXIT` | `EXIT code` | Terminates with an exit code. |
+| `END` | `END` | Marks the end of the program. |
+
+## 13. Executable Format
+
+Flix 0.2 generates **16-bit x86 DOS MZ executables**. These programs are intended to run in a compatible DOS environment or emulator.
+
+The compiler itself is written in C. Its source file remains named `compiler/ntc.c`; the filename is retained for continuity and does not change the public name of the language.
+
+## 14. Version 0.2
+
+Flix 0.2 includes numeric and text variables, arithmetic, output, input, comparisons, labels, conditional and unconditional jumps, and subroutine calls and returns.
+
+The `CALL` and `RET` instructions extend the language's control-flow capabilities by allowing programs to reuse a labeled block of code and return to the caller.
+
+## Project Credits
+
+**Flix** is developed by **Neptune Corporation**.
+
+**NPT Software** is the engine associated with the project.
