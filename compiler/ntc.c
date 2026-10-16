@@ -62,6 +62,8 @@ typedef enum {
     OP_JNE,
     OP_JA,
     OP_JB,
+    OP_JAE,
+    OP_JBE,
     OP_INPUT,
     OP_PRINT_TEXT_VAR
 } OpCode;
@@ -436,10 +438,14 @@ static int parse_source(const char *path)
             ins.label_index = (unsigned)index;
         }
 
-        /* JMP, JE, JNE, JA, JB label */
+        /* JMP, JE, JNE, JA, JB, JAE, JBE label */
         else if ((strncmp(s, "JMP", 3) == 0 &&
                   isspace((unsigned char)s[3])) ||
                  (strncmp(s, "JNE", 3) == 0 &&
+                  isspace((unsigned char)s[3])) ||
+                 (strncmp(s, "JAE", 3) == 0 &&
+                  isspace((unsigned char)s[3])) ||
+                 (strncmp(s, "JBE", 3) == 0 &&
                   isspace((unsigned char)s[3])) ||
                  (strncmp(s, "JE", 2) == 0 &&
                   isspace((unsigned char)s[2])) ||
@@ -458,6 +464,14 @@ static int parse_source(const char *path)
                 strcpy(mnemonic, "JNE");
                 target = trim(s + 3);
                 ins.op = OP_JNE;
+            } else if (strncmp(s, "JAE", 3) == 0) {
+                strcpy(mnemonic, "JAE");
+                target = trim(s + 3);
+                ins.op = OP_JAE;
+            } else if (strncmp(s, "JBE", 3) == 0) {
+                strcpy(mnemonic, "JBE");
+                target = trim(s + 3);
+                ins.op = OP_JBE;
             } else if (strncmp(s, "JE", 2) == 0) {
                 strcpy(mnemonic, "JE");
                 target = trim(s + 2);
@@ -1441,7 +1455,7 @@ static int emit_instruction(const Instruction *ins)
 
     case OP_CMP:
         return emit_comparison(ins);
-
+    
     case OP_JE:
         /* If not equal, skip the JMP. */
         return emit_conditional_jump(0x75, ins->label_index);
@@ -1457,7 +1471,14 @@ static int emit_instruction(const Instruction *ins)
     case OP_JB:
         /* If above or equal, skip the JMP. */
         return emit_conditional_jump(0x73, ins->label_index);
-    }
+
+    case OP_JAE:
+        /* If below, skip the JMP. */
+        return emit_conditional_jump(0x72, ins->label_index);
+
+    case OP_JBE:
+        /* If above, skip the JMP. */
+        return emit_conditional_jump(0x77, ins->label_index);
 
     return 0;
 }
