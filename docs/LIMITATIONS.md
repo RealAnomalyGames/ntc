@@ -2,8 +2,6 @@
 
 This document describes the current capabilities and restrictions of Neptune Code (NTC).
 
-**Documentation release:** Build 006  
-**Compiler baseline:** Build 005  
 **Executable format:** 16-bit DOS MZ
 
 NTC is an evolving programming language. Features listed as planned or unsupported below should not be assumed to work.
