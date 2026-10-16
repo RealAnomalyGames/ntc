@@ -1,8 +1,6 @@
 # NTC Language Reference
 
 **Language:** Neptune Code (NTC)  
-**Current compiler baseline:** Build 005  
-**Documentation release:** Build 006  
 **Executable target:** 16-bit DOS MZ
 
 ## 1. Program Structure
