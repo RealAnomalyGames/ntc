@@ -6,7 +6,7 @@
 
 **Flix 0.2** is a lightweight programming language that compiles programs into 16-bit x86 DOS MZ executables. It is designed to provide a straightforward way to write small programs using a simple, instruction-oriented syntax.
 
-Flix is developed by **NPT Software**.
+Flix is developed by **Neptune Corporation**.
 
 ## Features
 
