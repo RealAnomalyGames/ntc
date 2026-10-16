@@ -2,140 +2,92 @@
   <img src="https://github.com/RealAnomalyGames/ntc/blob/main/logo/nptlogo.png" alt="NTC Logo">
 </p>
 
-# NTC — Neptune Code
+# Flix
 
-**NTC (Neptune Code)** is a lightweight, assembly-inspired programming language developed by Neptune Corporation. It is designed to provide a straightforward way to write programs and compile them into executable files for DOS.
+**Flix 0.2** is a lightweight programming language that compiles programs into 16-bit x86 DOS MZ executables. It is designed to provide a straightforward way to write small programs using a simple, instruction-oriented syntax.
 
-The project includes the NTC compiler, a browser-based compiler interface, and NPT Software, a lightweight environment for writing NTC programs and exporting DOS executables.
+Flix is developed by **NPT Software**.
 
-## Project Overview
+## Features
 
-- **Language:** Neptune Code (NTC)
-- **Developer:** Neptune Corporation
-- **Compiler implementation:** C
-- **Compiler target:** 16-bit x86 DOS MZ executables
-- **Web technologies:** HTML, CSS, and JavaScript for the browser-based tools
-- **Development philosophy:** Simple, lightweight, and accessible
+Flix 0.2 includes:
 
-## Tools
+- **Variables and arithmetic** — store values and perform arithmetic operations.
+- **Text output** — print text and variable contents.
+- **User input** — accept input from the user.
+- **Comparisons** — compare values to control program flow.
+- **Conditional jumps** — branch according to comparison results.
+- **Labels** — define named destinations within a program.
+- **Subroutines** — use `CALL` to execute a subroutine and `RET` to return.
+- **Program termination** — specify an exit code with `EXIT`.
+- **DOS executable generation** — produce 16-bit x86 MZ executable files.
+- **Web compiler** — compile Flix programs through the browser-based compiler.
 
-### NTC Web Compiler
+## Example
 
-The NTC Web Compiler provides a browser-based interface for compiling NTC source code.
+```text
+PROGRAM HELLO
 
-- Compile NTC source files in the browser.
-- Generate DOS MZ executable files.
-- Experiment with the language without setting up the compiler locally.
+PRINT "Hello, world!"
 
-**[Open the NTC Web Compiler](https://realanomalygames.github.io/ntc/compiler/)**
-
-### NPT Software 0.1
-
-NPT Software is a lightweight NTC development tool built around the existing NTC compiler.
-
-Features include:
-
-- An integrated NTC source editor.
-- Create, open, and save `.NTC` source files.
-- Compile NTC programs into DOS `.EXE` files.
-- Export compiled executables for use outside the browser.
-- Compiler output and error reporting.
-
-NPT Software does not run DOS executables inside the browser. Compiled programs can be exported and run separately in a compatible DOS environment.
-
-**[Open NPT Software](https://realanomalygames.github.io/ntc/npt-software/)**
-
-## Getting Started
-
-### Your First NTC Program
-
-Create a file named `HELLO.NTC` and enter the following code:
-
-```ntc
-PROGRAM
-PRINT "HELLO FROM NTC!"
 EXIT 0
 END
 ```
 
-### Compile and Run
+This program prints a greeting and exits successfully.
 
-1. Open the NTC Web Compiler or NPT Software.
-2. Enter the program into the source editor.
-3. Compile the source code into a DOS executable.
-4. Export the resulting `.EXE` file.
-5. Run the executable in a compatible DOS environment.
+## Subroutines
 
-The compiler produces DOS MZ executables. Successful compilation does not replace testing the resulting program in its intended environment.
-
-## Language Features
-
-NTC 0.1 supports the following instructions:
-
-| Instruction | Purpose |
-|---|---|
-| `PROGRAM` | Begins a program |
-| `LET` | Defines a variable with a value |
-| `MOV` | Moves a value between variables |
-| `ADD` | Addition |
-| `SUB` | Subtraction |
-| `MUL` | Multiplication |
-| `DIV` | Division |
-| `PRINT` | Displays text or a variable |
-| `INPUT` | Accepts input |
-| `LABEL` | Defines a jump target |
-| `JMP` | Jumps to a label |
-| `CMP` | Compares values |
-| `JE` | Jumps when values are equal |
-| `JNE` | Jumps when values are not equal |
-| `JA` | Conditional jump for an above comparison |
-| `JB` | Conditional jump for a below comparison |
-| `EXIT` | Ends the program with an exit code |
-| `END` | Marks the end of the source program |
-
-Consult the language documentation in this repository for the exact syntax, restrictions, and usage examples.
-
-## Compatibility
-
-NTC generates 16-bit x86 DOS MZ executables. The compiler and its output should be distinguished from the environment used to run the resulting programs.
-
-NTC-generated executables have been tested successfully in **MS-DOS 6.22**.
-
-Other DOS versions and DOS-compatible environments may work, but compatibility should be verified through testing.
-
-## Repository Structure
+Flix 0.2 introduces subroutine calls and returns.
 
 ```text
-ntc/
-├── web/
-│   ├── compiler/       # NTC Web Compiler
-│   └── npt-software/   # NPT Software
-├── README.md
-└── ...
+PROGRAM SUBROUTINE_TEST
+
+CALL GREETING
+CALL GREETING
+JMP MAIN_END
+
+LABEL GREETING
+PRINT "Hello from the subroutine"
+RET
+
+LABEL MAIN_END
+PRINT "Back in the main program"
+EXIT 0
+
+END
 ```
 
-This is a simplified overview; additional source files, documentation, and build configuration are maintained in the repository.
+This example demonstrates repeated subroutine calls, returning to the calling code, and jumping over the subroutine body during normal execution.
 
-## Development
+## Compiler
 
-NTC is developed and maintained by Neptune Corporation. Development takes place alongside the project's compiler, documentation, and browser-based tools.
+The compiler is written in C and generates 16-bit x86 DOS MZ executables.
 
-When reporting a problem, include the NTC source code that reproduces it, the compiler output, and the environment in which the resulting executable was tested. Do not include private information in bug reports.
+The compiler source file remains at:
 
-## Project Status
+`compiler/ntc.c`
 
-NTC 0.1 and NPT Software 0.1 provide the initial programming and compilation workflow.
+The source filename is retained for continuity, even though the programming language is now called Flix.
 
-The current focus is on maintaining reliable compilation, documenting the language, and improving the development experience.
+## Web Compiler
 
-## Links
+Flix also has a browser-based compiler, allowing users to experiment with the language without setting up a local compiler environment.
 
-- [NTC Web Compiler](https://realanomalygames.github.io/ntc/compiler/)
-- [NPT Software](https://realanomalygames.github.io/ntc/npt-software/)
-- [NTC GitHub Repository](https://github.com/realanomalygames/ntc)
+See the project's repository for the web compiler and its associated files.
 
----
+## Version 0.2
 
-**NTC — Neptune Code**
+Flix 0.2 adds support for:
 
-Developed by **Neptune Corporation™**.
+- `CALL` — call a labeled subroutine.
+- `RET` — return from a subroutine.
+- Near-call address resolution through the existing label and patching system.
+
+These additions expand Flix's control-flow capabilities while preserving the existing instruction set.
+
+## Project
+
+Flix is a project by **Neptune Corporation**.
+
+Visit the project's repository for compiler source code, documentation, examples, and updates.
