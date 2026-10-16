@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/RealAnomalyGames/ntc/blob/main/logo/nptlogo.png" alt="NTC Logo">
+  <img src="https://github.com/RealAnomalyGames/ntc/blob/main/logo/flixlogo.png" alt="NTC Logo">
 </p>
 
 # Flix
