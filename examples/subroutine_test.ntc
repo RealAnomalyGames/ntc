@@ -2,12 +2,14 @@ PROGRAM SUBROUTINE_TEST
 
 CALL GREETING
 CALL GREETING
-
-PRINT "Back in the main program"
-EXIT 0
+JMP MAIN_END
 
 LABEL GREETING
 PRINT "Hello from the subroutine"
 RET
+
+LABEL MAIN_END
+PRINT "Back in the main program"
+EXIT 0
 
 END
