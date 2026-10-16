@@ -358,6 +358,14 @@ static int parse_source(const char *path)
 
         char *s = trim(line);
 
+        if (strncmp(s, "JAE", 3) == 0) {
+            fprintf(stderr,
+                    "DEBUG: instruction=[%s], char3=%d, whitespace=%d\n",
+                    s,
+                    (unsigned char)s[3],
+                    isspace((unsigned char)s[3]) != 0);
+        }
+
         if (!*s)
             continue;
 
