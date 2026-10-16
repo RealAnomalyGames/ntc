@@ -49,6 +49,7 @@ typedef enum {
     OP_SUB,
     OP_MUL,
     OP_DIV,
+    OP_MOD,
     OP_INC,
     OP_DEC,
     OP_PRINT_TEXT,
@@ -634,9 +635,9 @@ static int parse_source(const char *path)
 
             ins.op = (s[0] == 'I') ? OP_INC : OP_DEC;
             ins.destination = (unsigned)index;
-        }
-            
-        /* ADD, SUB, MUL, DIV destination, operand */
+        }    
+        
+        /* ADD, SUB, MUL, DIV, MOD destination, operand */
         else if ((strncmp(s, "ADD", 3) == 0 &&
                   isspace((unsigned char)s[3])) ||
                  (strncmp(s, "SUB", 3) == 0 &&
@@ -644,6 +645,8 @@ static int parse_source(const char *path)
                  (strncmp(s, "MUL", 3) == 0 &&
                   isspace((unsigned char)s[3])) ||
                  (strncmp(s, "DIV", 3) == 0 &&
+                  isspace((unsigned char)s[3])) ||
+                 (strncmp(s, "MOD", 3) == 0 &&
                   isspace((unsigned char)s[3]))) {
             char *args = trim(s + 3);
             char *comma = strchr(args, ',');
@@ -675,22 +678,25 @@ static int parse_source(const char *path)
                 ins.op = OP_ADD;
             else if (s[0] == 'S')
                 ins.op = OP_SUB;
-            else if (s[0] == 'M')
+            else if (strncmp(s, "MUL", 3) == 0)
                 ins.op = OP_MUL;
+            else if (strncmp(s, "MOD", 3) == 0)
+                ins.op = OP_MOD;
             else
                 ins.op = OP_DIV;
 
-            if (ins.op == OP_DIV &&
+            if ((ins.op == OP_DIV || ins.op == OP_MOD) &&
                 ins.argument.kind == ARG_IMMEDIATE &&
                 ins.argument.value == 0) {
-                error_at(line_number, "Division by zero is not allowed.");
+                error_at(line_number,
+                         "Division or modulo by zero is not allowed.");
                 fclose(file);
                 return 0;
             }
 
             ins.destination = (unsigned)index;
         }
-
+            
         /* PRINT "text" or PRINT variable */
         else if (strncmp(s, "PRINT", 5) == 0 &&
                  isspace((unsigned char)s[5])) {
@@ -1332,6 +1338,59 @@ static int emit_instruction(const Instruction *ins)
                 !emit_address(PATCH_VARIABLE, ins->argument.value))
                 return 0;
         }
+
+        return emit_variable_store(ins->destination);
+    
+    case OP_MOD:
+        if (!emit_variable_load(ins->destination))
+            return 0;
+
+        if (ins->argument.kind == ARG_IMMEDIATE) {
+            /* mov bx, divisor */
+            if (!emit8(0xBB) ||
+                !emit16(ins->argument.value))
+                return 0;
+
+            /* xor dx, dx; div bx */
+            if (!emit8(0x31) ||
+                !emit8(0xD2) ||
+                !emit8(0xF7) ||
+                !emit8(0xF3))
+                return 0;
+        } else {
+            /*
+             * cmp word [operand], 0
+             * jne +5
+             * mov ax, 4C01h
+             * int 21h
+             */
+            if (!emit8(0x83) ||
+                !emit8(0x3E) ||
+                !emit_address(PATCH_VARIABLE, ins->argument.value) ||
+                !emit8(0x00) ||
+                !emit8(0x75) ||
+                !emit8(0x05) ||
+                !emit8(0xB8) ||
+                !emit16(0x4C01) ||
+                !emit8(0xCD) ||
+                !emit8(0x21))
+                return 0;
+
+            /* xor dx, dx; div word [operand] */
+            if (!emit8(0x31) ||
+                !emit8(0xD2) ||
+                !emit8(0xF7) ||
+                !emit8(0x36) ||
+                !emit_address(PATCH_VARIABLE, ins->argument.value))
+                return 0;
+        }
+
+        /*
+         * Unsigned DIV returns the remainder in DX.
+         * Move it to AX so the existing store helper can save it.
+         */
+        if (!emit8(0x89) || !emit8(0xD0))
+            return 0;
 
         return emit_variable_store(ins->destination);
 
