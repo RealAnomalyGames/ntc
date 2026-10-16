@@ -65,7 +65,9 @@ typedef enum {
     OP_JAE,
     OP_JBE,
     OP_INPUT,
-    OP_PRINT_TEXT_VAR
+    OP_PRINT_TEXT_VAR,
+    OP_CALL,
+    OP_RET
 } OpCode;
 
 typedef enum {
@@ -358,14 +360,6 @@ static int parse_source(const char *path)
 
         char *s = trim(line);
 
-        if (strncmp(s, "JAE", 3) == 0) {
-            fprintf(stderr,
-                    "DEBUG: instruction=[%s], char3=%d, whitespace=%d\n",
-                    s,
-                    (unsigned char)s[3],
-                    isspace((unsigned char)s[3]) != 0);
-        }
-
         if (!*s)
             continue;
 
@@ -511,6 +505,36 @@ static int parse_source(const char *path)
             }
 
             ins.label_index = (unsigned)index;
+        }
+
+        /* CALL label */
+        else if (strncmp(s, "CALL", 4) == 0 &&
+                 isspace((unsigned char)s[4])) {
+            char *target = trim(s + 4);
+
+            if (!valid_name(target)) {
+                error_at(line_number,
+                         "CALL requires a valid label name.");
+                fclose(file);
+                return 0;
+            }
+
+            int index = get_or_create_label(target);
+
+            if (index < 0) {
+                error_at(line_number,
+                         "Label table is full or name is too long.");
+                fclose(file);
+                return 0;
+            }
+
+            ins.op = OP_CALL;
+            ins.label_index = (unsigned)index;
+        }
+
+        /* RET */
+        else if (strcmp(s, "RET") == 0) {
+            ins.op = OP_RET;
         }
 
         /* CMP left, right */
@@ -1110,6 +1134,21 @@ static int emit_near_jump(unsigned label_index)
     return emit16(0);
 }
 
+static int emit_near_call(unsigned label_index)
+{
+    if (jump_patch_count >= MAX_JUMPS)
+        return 0;
+
+    if (!emit8(0xE8))
+        return 0; /* CALL near, relative 16-bit displacement */
+
+    jump_patches[jump_patch_count].position = code_size;
+    jump_patches[jump_patch_count].label_index = label_index;
+    ++jump_patch_count;
+
+    return emit16(0);
+}
+
 static int emit_conditional_jump(
     uint8_t inverse_condition,
     unsigned label_index)
@@ -1460,6 +1499,12 @@ static int emit_instruction(const Instruction *ins)
 
     case OP_JMP:
         return emit_near_jump(ins->label_index);
+
+    case OP_CALL:
+        return emit_near_call(ins->label_index);
+
+    case OP_RET:
+        return emit8(0xC3);
 
     case OP_CMP:
         return emit_comparison(ins);
