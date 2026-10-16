@@ -1,0 +1,24 @@
+PROGRAM CONDITIONAL_JUMPS
+
+LET VALUE = 10
+CMP VALUE, 10
+JAE EQUAL_OR_HIGHER
+
+PRINT "Value is not equal or above"
+JMP FINISH
+
+LABEL EQUAL_OR_HIGHER
+PRINT "Value is equal or above"
+
+CMP VALUE, 11
+JBE EQUAL_OR_LOWER
+
+PRINT "Value is not equal or below"
+JMP FINISH
+
+LABEL EQUAL_OR_LOWER
+PRINT "Value is equal or below"
+
+LABEL FINISH
+EXIT 0
+END
