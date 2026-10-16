@@ -1,92 +1,41 @@
-# NTC Current Limitations
+# Flix — Limitations
 
-This document describes the current capabilities and restrictions of Neptune Code (NTC).
+Flix is a programming language developed by Neptune Corporation. Version 0.2 focuses on compiling programs into 16-bit x86 DOS MZ executables.
 
-**Executable format:** 16-bit DOS MZ
+Although Flix supports basic programming constructs, it is still under development and has several limitations.
 
-NTC is an evolving programming language. Features listed as planned or unsupported below should not be assumed to work.
+## Platform Limitations
 
-## 1. Target Platform
+- **16-bit DOS executables:** The compiler currently targets 16-bit x86 DOS MZ executables. It does not natively produce 32-bit or 64-bit Windows applications.
+- **DOS environment:** Compiled programs are intended to run in a compatible DOS environment, such as MS-DOS, FreeDOS, or a suitable emulator.
+- **Limited operating system integration:** Flix does not currently provide extensive access to modern operating system features or APIs.
 
-The current compiler generates 16-bit DOS MZ executable files.
+## Language Limitations
 
-These programs are intended for compatible DOS environments, including the tested MS-DOS 6.22 environment.
+- **Basic language features:** Flix focuses on fundamental programming instructions, arithmetic, variables, input/output, labels, conditional jumps, and subroutines.
+- **Limited data types:** Variable and data-type support is basic and may not cover the needs of more complex programs.
+- **Limited control structures:** Program flow is primarily managed through labels, jumps, comparisons, and subroutine calls rather than higher-level constructs.
+- **No advanced language features:** Features such as complex data structures, object-oriented programming, and a comprehensive standard library are not currently part of the language.
 
-The generated executables are not native 32-bit or 64-bit Windows PE applications. Modern 64-bit Windows does not natively execute 16-bit DOS applications.
+## Compiler Limitations
 
-## 2. Numeric Data
+- **Target-specific output:** The compiler is designed around its current 16-bit DOS executable target.
+- **Limited diagnostics:** Error messages and debugging support may be less comprehensive than those of mature programming languages.
+- **Ongoing development:** Compiler behavior, language features, and documentation may change in future releases.
 
-Numeric variables use unsigned 16-bit integer values.
+## Web Compiler
 
-- Minimum value: `0`
-- Maximum value: `65535`
-- Arithmetic uses integer operations.
-- Results wrap modulo 65,536 where applicable.
-- Division by zero is guarded against by the generated program.
+A browser-based compiler is also available. Its capabilities and execution environment may differ from those of the native compiler, and it should not be assumed to provide identical behavior in every situation.
 
-There are no native floating-point numeric variables in the current language.
+## Future Development
 
-## 3. Text Data
+These limitations describe the current state of Flix and are not necessarily permanent. Future versions may expand the language, improve diagnostics, add capabilities, and support additional targets.
 
-Text variables use fixed-size buffers.
+For current syntax and supported features, consult the language reference and examples included with the project.
 
-The current input buffer supports up to 127 characters. Text variables are supported by `INPUT` and `PRINT`, but general-purpose text manipulation is not available.
+---
 
-The current compiler does not support text-string comparisons using `CMP`.
-
-The source parser also restricts certain characters inside string literals, including embedded double quotes and dollar signs.
-
-## 4. Control Flow
-
-The current compiler supports labels, unconditional jumps, and conditional jumps based on numeric comparisons.
-
-Supported instructions include:
-
-- `LABEL`
-- `JMP`
-- `CMP`
-- `JE`
-- `JNE`
-- `JA`
-- `JB`
-
-Loops can be constructed using labels and backward jumps. There are no dedicated high-level `FOR` or `WHILE` statements.
-
-Each program must contain exactly one final `EXIT` followed by `END`. Instructions and labels cannot be placed after `EXIT`.
-
-## 5. Language Features Not Currently Provided
-
-The current compiler does not provide native support for:
-
-- User-defined functions or procedures
-- Arrays or structures
-- Floating-point variables
-- General-purpose text comparisons
-- A built-in file I/O API for NTC programs
-- A built-in graphical user interface
-- Native 32-bit or 64-bit PE executable output
-- High-level loop statements such as `FOR` and `WHILE`
-
-Do not assume these features are available unless a future release explicitly implements them.
-
-## 6. Input Validation
-
-Numeric input must be a valid decimal integer between `0` and `65535`. Invalid numeric input should be rejected by the generated program.
-
-Text input is limited by the fixed-size buffer.
-
-Interactive behavior should be tested in a compatible DOS environment before a program is distributed.
-
-## 7. Compiler and Program Limits
-
-The compiler implementation has internal limits on source lines, instructions, variables, labels, strings, and generated executable size. Very large programs may exceed these limits.
-
-The compiler may reject unsupported syntax or invalid references during compilation.
-
-## 8. Development Status
-
-NTC is under active development. Build 006 focuses on examples and documentation and does not introduce compiler features.
-
-Future targets such as Windows NE or 32-bit and 64-bit PE executables require additional compiler and runtime work. They are not part of the current Build 005 compiler baseline.
-
-For the supported language syntax, see [LANGUAGE_REFERENCE.md](LANGUAGE_REFERENCE.md).
+**Language:** Flix  
+**Developer:** Neptune Corporation  
+**Current version:** 0.2  
+**Executable target:** 16-bit x86 DOS MZ  
