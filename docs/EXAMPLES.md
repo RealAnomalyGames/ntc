@@ -1,95 +1,306 @@
-# NTC Examples
+# Flix Examples
 
-This directory contains example programs for Neptune Code (NTC). They demonstrate the language features available in the current compiler.
+This document contains example programs for **Flix 0.2**, a programming language developed by NPT Software that compiles to 16-bit x86 DOS MZ executables.
 
-All examples target 16-bit DOS MZ executables.
+Each code example is a separate program. Save an example as a source file and compile it using the Flix compiler.
 
-## Example Catalog
+## Table of Contents
 
-| File | Description |
+1. Hello, World!
+2. Numeric Variables
+3. Arithmetic
+4. Printing Variables
+5. Text Variables and User Input
+6. Labels and Unconditional Jumps
+7. Comparisons and Conditional Jumps
+8. Subroutines with CALL and RET
+9. Combining Control Flow and Subroutines
+
+---
+
+## 1. Hello, World!
+
+The simplest Flix program prints a message and exits successfully.
+
+```text
+PROGRAM HELLO
+
+PRINT "Hello, world!"
+
+EXIT 0
+END
+```
+
+**Expected output:**
+
+```text
+Hello, world!
+```
+
+## 2. Numeric Variables
+
+Use `LET` to declare a numeric variable and assign its initial value. Numeric values range from 0 to 65535.
+
+```text
+PROGRAM VARIABLES
+
+LET SCORE = 100
+
+PRINT SCORE
+
+EXIT 0
+END
+```
+
+**Expected output:**
+
+```text
+100
+```
+
+## 3. Arithmetic
+
+Flix supports addition, subtraction, multiplication, and division through `ADD`, `SUB`, `MUL`, and `DIV`.
+
+```text
+PROGRAM ARITHMETIC
+
+LET NUMBER = 10
+
+ADD NUMBER, 5
+PRINT NUMBER
+
+SUB NUMBER, 3
+PRINT NUMBER
+
+MUL NUMBER, 2
+PRINT NUMBER
+
+DIV NUMBER, 4
+PRINT NUMBER
+
+EXIT 0
+END
+```
+
+**Expected output:**
+
+```text
+15
+12
+24
+6
+```
+
+## 4. Printing Variables
+
+Use `MOV` to copy a value into another variable. Use `PRINT` to display the result.
+
+```text
+PROGRAM COPY_VALUE
+
+LET ORIGINAL = 42
+LET COPY = 0
+
+MOV COPY, ORIGINAL
+
+PRINT COPY
+
+EXIT 0
+END
+```
+
+**Expected output:**
+
+```text
+42
+```
+
+## 5. Text Variables and User Input
+
+Text variables can be declared with an empty string. Use `INPUT` to read text from the user and `PRINT` to display it.
+
+```text
+PROGRAM GREETING
+
+LET NAME = ""
+
+PRINT "Enter your name:"
+INPUT NAME
+
+PRINT "Hello, "
+PRINT NAME
+
+EXIT 0
+END
+```
+
+The program asks for a name and then prints a greeting. The exact input experience may depend on the compiler target.
+
+## 6. Labels and Unconditional Jumps
+
+A `LABEL` defines a named destination. `JMP` transfers execution to that label.
+
+```text
+PROGRAM JUMP_EXAMPLE
+
+PRINT "Start"
+JMP SECOND
+
+LABEL FIRST
+PRINT "First section"
+JMP FINISH
+
+LABEL SECOND
+PRINT "Second section"
+
+LABEL FINISH
+PRINT "Finished"
+
+EXIT 0
+END
+```
+
+**Expected output:**
+
+```text
+Start
+Second section
+Finished
+```
+
+The `FIRST` label is skipped because execution jumps directly to `SECOND`.
+
+## 7. Comparisons and Conditional Jumps
+
+Use `CMP` to compare two values. Conditional jumps use the result of that comparison.
+
+Available conditional jump instructions include:
+
+| Instruction | Meaning |
 |---|---|
-| `hello.ntc` | Displays a greeting using text output. |
-| `variables.ntc` | Declares numeric variables and demonstrates assignment with `MOV`. |
-| `arithmetic.ntc` | Demonstrates addition, subtraction, multiplication, and division. |
-| `text_input.ntc` | Accepts text from the keyboard and displays it. |
-| `numeric_input.ntc` | Accepts a decimal integer and displays the result. |
-| `comparison.ntc` | Compares numeric values and branches based on equality. |
-| `branching.ntc` | Demonstrates conditional jumps and labels. |
-| `countdown.ntc` | Uses a backward jump to implement a countdown loop. |
-| `skullgeon_demo.ntc` | Demonstrates numeric menu input and multiple narrative paths in a small dungeon scenario. |
+| `JE` | Jump if equal |
+| `JNE` | Jump if not equal |
+| `JA` | Jump if above (unsigned) |
+| `JB` | Jump if below (unsigned) |
+| `JAE` | Jump if above or equal (unsigned) |
+| `JBE` | Jump if below or equal (unsigned) |
 
-## Compiling Examples
+Example:
 
-Build the compiler from the repository root:
+```text
+PROGRAM COMPARISON
 
-```bash
-mkdir -p build
-gcc -std=c11 -O2 -Wall -Wextra -Werror compiler/ntc.c -o build/ntc
+LET SCORE = 100
+
+CMP SCORE, 100
+JE EQUAL
+
+PRINT "Score is not 100"
+JMP FINISH
+
+LABEL EQUAL
+PRINT "Score is 100"
+
+LABEL FINISH
+EXIT 0
+END
 ```
 
-Compile an individual example:
+**Expected output:**
 
-```bash
-./build/ntc examples/hello.ntc build/hello.exe
+```text
+Score is 100
 ```
 
-Replace `hello` with the example's filename to compile another program.
+`CMP` performs the comparison; the conditional jump decides whether execution transfers to the specified label.
 
-To compile all examples:
+## 8. Subroutines with CALL and RET
 
-```bash
-mkdir -p build/examples
+Flix 0.2 introduces `CALL` and `RET`, allowing a program to execute a labeled subroutine and then return to the instruction after the call.
 
-for source in examples/*.ntc; do
-    name="$(basename "$source" .ntc)"
-    ./build/ntc "$source" "build/examples/$name.exe" || exit 1
-done
+```text
+PROGRAM SUBROUTINE_TEST
+
+CALL GREETING
+CALL GREETING
+JMP MAIN_END
+
+LABEL GREETING
+PRINT "Hello from the subroutine"
+RET
+
+LABEL MAIN_END
+PRINT "Back in the main program"
+
+EXIT 0
+END
 ```
 
-The resulting `.exe` files are DOS MZ executables, not native modern Windows applications.
+**Expected output:**
 
-## What to Learn from Each Example
+```text
+Hello from the subroutine
+Hello from the subroutine
+Back in the main program
+```
 
-### Hello
+How it works:
 
-Start here to learn `PROGRAM`, `PRINT`, `EXIT`, and `END`.
+1. `CALL GREETING` transfers execution to the `GREETING` label.
+2. `RET` returns execution to the instruction following `CALL`.
+3. The subroutine can be called more than once.
+4. `JMP MAIN_END` skips over the subroutine body during normal execution.
+5. `EXIT 0` terminates the program.
 
-### Variables
+A subroutine called with `CALL` should return with `RET`. The main program should reach its final `EXIT` rather than fall through into a subroutine.
 
-Learn how `LET` declares numeric variables and how `MOV` copies values.
+## 9. Combining Control Flow and Subroutines
 
-### Arithmetic
+This example combines numeric variables, comparisons, conditional jumps, and a reusable subroutine.
 
-Learn how arithmetic instructions modify their destination variables.
+```text
+PROGRAM CONTROL_FLOW
 
-### Text Input
+LET VALUE = 10
 
-Learn how to declare a text variable, read keyboard input, and display the result.
+CMP VALUE, 10
+JE MATCH
 
-### Numeric Input
+PRINT "Value does not match"
+JMP FINISH
 
-Learn how to accept numeric input for menu choices and simple calculations.
+LABEL MATCH
+CALL SHOW_MESSAGE
+JMP FINISH
 
-### Comparison
+LABEL SHOW_MESSAGE
+PRINT "Value matches"
+RET
 
-Learn how `CMP` and `JE` can make a program take different paths.
+LABEL FINISH
+EXIT 0
+END
+```
 
-### Branching
+**Expected output:**
 
-Study how labels, conditional jumps, and `JMP` combine to form a decision tree.
+```text
+Value matches
+```
 
-### Countdown
+This demonstrates how labels, comparisons, jumps, and subroutines can be combined to organize a program.
 
-Learn how to implement repetition using a label and a backward jump.
+---
 
-### The Skullgeon Demo
+## Compiler Notes
 
-See how numeric input and branching can be combined into a small interactive dungeon scenario. This is a demonstration, not the full game.
+- The compiler source file remains `compiler/ntc.c`.
+- Flix produces 16-bit x86 DOS MZ executables.
+- `PROGRAM` begins a source program.
+- `EXIT` must be the last instruction before `END`.
+- Labels are defined with `LABEL name`.
+- Forward references to labels can be used for jumps and subroutine calls.
+- The examples use the Flix 0.2 instruction set; later releases may add or change capabilities.
 
-## Testing
-
-Compilation confirms that the compiler accepts a source file and generates an output executable. It does not, by itself, guarantee correct runtime behavior.
-
-Test interactive examples in a compatible DOS environment. In particular, check numeric input, branching, and the countdown loop before relying on them in a larger project.
-
-For syntax details, consult [LANGUAGE_REFERENCE.md](LANGUAGE_REFERENCE.md). For known restrictions, consult [LIMITATIONS.md](LIMITATIONS.md).
+Flix is developed by **Neptune Corporation**.
