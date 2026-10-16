@@ -1,22 +1,9 @@
 /*
  * NTC - Neptune Code
- * Build 005: Numeric Input
+ * Build 006: Increment and Decrement
  *
  * Host compiler: C11
  * Output: 16-bit x86 DOS MZ executable
- *
- * Supported instructions:
- *   PROGRAM name
- *   LET name = value
- *   MOV destination, source
- *   ADD destination, operand
- *   SUB destination, operand
- *   MUL destination, operand
- *   DIV destination, operand
- *   PRINT "text"
- *   PRINT variable
- *   EXIT 0..255
- *   END
  */
 
 #include <ctype.h>
@@ -62,6 +49,8 @@ typedef enum {
     OP_SUB,
     OP_MUL,
     OP_DIV,
+    OP_INC,
+    OP_DEC,
     OP_PRINT_TEXT,
     OP_PRINT_VAR,
     OP_EXIT,
@@ -624,7 +613,29 @@ static int parse_source(const char *path)
             ins.op = OP_MOV;
             ins.destination = (unsigned)index;
         }
+            
+        /* INC variable OR DEC variable */
+        else if ((strncmp(s, "INC", 3) == 0 &&
+                  isspace((unsigned char)s[3])) ||
+                 (strncmp(s, "DEC", 3) == 0 &&
+                  isspace((unsigned char)s[3]))) {
+            char *name = trim(s + 3);
 
+            int index = find_variable(name);
+
+            if (!valid_name(name) ||
+                index < 0 ||
+                variables[index].kind != VAR_NUMBER) {
+                error_at(line_number,
+                         "INC and DEC require a declared numeric variable.");
+                fclose(file);
+                return 0;
+            }
+
+            ins.op = (s[0] == 'I') ? OP_INC : OP_DEC;
+            ins.destination = (unsigned)index;
+        }
+            
         /* ADD, SUB, MUL, DIV destination, operand */
         else if ((strncmp(s, "ADD", 3) == 0 &&
                   isspace((unsigned char)s[3])) ||
@@ -1226,6 +1237,24 @@ static int emit_instruction(const Instruction *ins)
         return emit8(0xB8) &&
                emit16(ins->argument.value) &&
                emit_variable_store(ins->destination);
+
+    case OP_INC:
+    case OP_DEC:
+        if (!emit_variable_load(ins->destination))
+            return 0;
+
+        /*
+         * INC: add ax, 1
+         * DEC: sub ax, 1
+         *
+         * NTC numeric variables are 16-bit values.
+         */
+        if (!emit8(0x83) ||
+            !emit8(ins->op == OP_INC ? 0xC0 : 0xE8) ||
+            !emit8(0x01))
+            return 0;
+
+        return emit_variable_store(ins->destination);
 
     case OP_ADD:
     case OP_SUB:
