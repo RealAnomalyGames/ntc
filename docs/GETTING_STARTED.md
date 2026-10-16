@@ -1,29 +1,28 @@
-# Getting Started with Neptune Code (NTC)
+# Getting Started with Flix
 
-Welcome to **Neptune Code (NTC)**, a simple, assembly-inspired programming language developed by Neptune Corporation™. NTC is designed to make low-level programming concepts accessible through a straightforward instruction-based syntax.
+Welcome to **Flix**, a programming language developed by **Neptune Corporation**. Flix compiles programs into 16-bit x86 DOS MZ executables and provides a simple, instruction-oriented way to write programs.
 
-NTC currently compiles programs into **16-bit DOS MZ executable files**, intended for compatible DOS environments.
+Flix 0.2 introduces subroutine support through the `CALL` and `RET` instructions.
 
-## Requirements
+## 1. What You Need
 
-To build the NTC compiler from source, you need:
+To get started, you need:
 
-- GCC or another compatible C compiler capable of compiling the compiler source.
-- A C11-compatible compiler.
-- The NTC compiler source file, `compiler/ntc.c`.
-- A compatible DOS environment, such as MS-DOS 6.22, to run the generated programs.
+- The Flix compiler.
+- A text editor for writing source files.
+- A C compiler if you intend to build the compiler from source.
+- A DOS environment or emulator, such as DOSBox, to run the generated DOS executables.
 
-The compiler can be built and examples can be validated using GitHub Actions.
+You can also use the browser-based compiler if it is available through the project.
 
-## Your First NTC Program
+## 2. Create Your First Program
 
-Create a file named `hello.ntc`:
+Create a new file named `hello.flix` and enter the following code:
 
-```ntc
-PROGRAM Hello
+```text
+PROGRAM HELLO
 
-PRINT "Hello from NTC!"
-PRINT "Welcome to Neptune Code."
+PRINT "Hello, world!"
 
 EXIT 0
 END
@@ -31,82 +30,179 @@ END
 
 ### Understanding the program
 
-- `PROGRAM Hello` declares the program name.
-- `PRINT "Hello from NTC!"` displays a text message.
+- `PROGRAM HELLO` declares the program's name.
+- `PRINT "Hello, world!"` displays a message.
 - `EXIT 0` terminates the program with exit code zero.
-- `END` marks the end of the source program.
+- `END` marks the end of the source file.
 
-Every NTC program must begin with a `PROGRAM` declaration and end with `EXIT` followed by `END`.
+**Important:** `EXIT` must be the last instruction before `END`.
 
-## Building the Compiler
+## 3. Compile Your Program
 
-From the root of the repository, run:
+The compiler source file remains named `compiler/ntc.c`. The filename is retained even though the programming language is now called Flix.
 
-```bash
-mkdir -p build
-gcc -std=c11 -O2 -Wall -Wextra -Werror compiler/ntc.c -o build/ntc
+If you have built the compiler executable, invoke it with the source path followed by the desired output path:
+
+```text
+ntc hello.flix hello.exe
 ```
 
-This produces the host compiler at `build/ntc`.
+This command illustrates the compiler's argument format:
 
-These commands assume GCC is installed and available in your shell.
-
-## Compiling a Program
-
-To compile the example:
-
-```bash
-./build/ntc examples/hello.ntc build/hello.exe
+```text
+ntc <source-file> <output-file>
 ```
 
-The compiler reads the `.ntc` source file and writes a DOS MZ executable.
+The compiler produces a 16-bit x86 DOS MZ executable. The precise build command depends on your environment and the project's current build configuration.
 
-The generated `.exe` is a DOS executable, not a native modern Windows application.
+## 4. Run Your Program
 
-## Running Your Program
+Run the generated `hello.exe` in a compatible DOS environment.
 
-Transfer the generated executable into a compatible DOS environment. For example, in MS-DOS 6.22, navigate to the directory containing `HELLO.EXE` and enter:
+Expected output:
 
-```dos
-HELLO
+```text
+Hello, world!
 ```
 
-The program should display its two greeting messages.
+If you are using a browser-based compiler, follow its on-screen instructions to compile and run your program.
 
-NTC programs can also be tested in an appropriately configured DOS virtual machine.
+## 5. Use Variables and Arithmetic
 
-## Exploring the Examples
+Flix supports numeric variables and basic arithmetic operations.
 
-The `examples/` directory contains programs demonstrating:
+```text
+PROGRAM CALCULATOR
 
-- Text output
-- Numeric variables and assignment
-- Arithmetic operations
-- Text input
-- Numeric input
-- Comparisons
-- Conditional branching
-- Loops
-- A small interactive dungeon adventure
+LET VALUE = 10
 
-Read [EXAMPLES.md](EXAMPLES.md) for the example catalog and [LANGUAGE_REFERENCE.md](LANGUAGE_REFERENCE.md) for the language syntax.
+ADD VALUE, 5
+SUB VALUE, 2
 
-## Troubleshooting
+PRINT VALUE
 
-**The compiler reports a source-line error.**
+EXIT 0
+END
+```
 
-Check the line number in the error message. Confirm that instruction names, variable declarations, labels, and operands follow the language reference.
+Expected output:
 
-**The program does not run in Windows.**
+```text
+13
+```
 
-The generated file targets 16-bit DOS. Modern 64-bit Windows does not natively execute 16-bit DOS programs. Use a compatible DOS environment instead.
+The program declares a variable, adds five, subtracts two, and prints the result.
 
-**Numeric input is rejected.**
+## 6. Use Labels and Jumps
 
-Enter a decimal integer in the supported range of 0 through 65,535. Text and empty input are not valid numeric values.
+Labels let you name destinations within your program. Use `JMP` to transfer execution to a label.
 
-## Current Status
+```text
+PROGRAM JUMP_EXAMPLE
 
-NTC is an evolving programming language. Consult [LIMITATIONS.md](LIMITATIONS.md) for the current target, supported data types, and known restrictions.
+PRINT "Before the jump"
+JMP DESTINATION
 
-For a complete list of supported instructions and syntax, see [LANGUAGE_REFERENCE.md](LANGUAGE_REFERENCE.md).
+PRINT "This message is skipped"
+
+LABEL DESTINATION
+PRINT "After the jump"
+
+EXIT 0
+END
+```
+
+Expected output:
+
+```text
+Before the jump
+After the jump
+```
+
+## 7. Call a Subroutine
+
+Flix 0.2 supports subroutines using `CALL` and `RET`.
+
+```text
+PROGRAM SUBROUTINE_EXAMPLE
+
+CALL GREETING
+PRINT "Returned to the main program"
+JMP FINISH
+
+LABEL GREETING
+PRINT "Hello from a subroutine"
+RET
+
+LABEL FINISH
+EXIT 0
+END
+```
+
+Expected output:
+
+```text
+Hello from a subroutine
+Returned to the main program
+```
+
+### How it works
+
+1. `CALL GREETING` transfers execution to the `GREETING` label.
+2. The subroutine prints its message.
+3. `RET` returns execution to the instruction following `CALL`.
+4. The main program continues and then jumps over the subroutine body.
+5. The program reaches its final `EXIT`.
+
+Always use `RET` to return from a subroutine invoked with `CALL`. Use an appropriate jump when ordinary execution needs to skip over a subroutine's definition.
+
+## 8. Compare Values
+
+Use `CMP` with a conditional jump to make a decision.
+
+```text
+PROGRAM CHECK_VALUE
+
+LET VALUE = 25
+
+CMP VALUE, 25
+JE MATCH
+
+PRINT "No match"
+JMP FINISH
+
+LABEL MATCH
+PRINT "Match found"
+
+LABEL FINISH
+EXIT 0
+END
+```
+
+Expected output:
+
+```text
+Match found
+```
+
+Flix 0.2 supports conditional jumps including `JE`, `JNE`, `JA`, `JB`, `JAE`, and `JBE`.
+
+## 9. Where to Go Next
+
+After completing these examples:
+
+- Read `EXAMPLES.md` for more sample programs.
+- Consult the project documentation for the supported instructions and syntax.
+- Experiment with variables, arithmetic, comparisons, labels, and subroutines.
+- Test generated executables in a compatible DOS environment.
+
+## Project Information
+
+**Language:** Flix  
+**Language developer:** Neptune Corporation  
+**Engine:** NPT Software  
+**Version:** 0.2  
+**Compiler source:** `compiler/ntc.c`  
+**Target format:** 16-bit x86 DOS MZ executable
+
+The compiler source filename remains unchanged for continuity. Renaming the language does not require changing the compiler's filename or rewriting its implementation.
