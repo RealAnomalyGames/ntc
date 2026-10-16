@@ -1,0 +1,13 @@
+PROGRAM SUBROUTINE_TEST
+
+CALL GREETING
+CALL GREETING
+
+PRINT "Back in the main program"
+EXIT 0
+
+LABEL GREETING
+PRINT "Hello from the subroutine"
+RET
+
+END
