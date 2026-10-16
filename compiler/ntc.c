@@ -143,7 +143,7 @@ static int saw_end;
 
 static void error_at(unsigned line, const char *message)
 {
-    fprintf(stderr, "NTC error on line %u: %s\n", line, message);
+    fprintf(stderr, "Flix error on line %u: %s\n", line, message);
 }
 
 static char *trim(char *s)
@@ -852,20 +852,20 @@ static int parse_source(const char *path)
     fclose(file);
 
     if (read_error) {
-        fprintf(stderr, "NTC error: Could not read source file.\n");
+        fprintf(stderr, "Flix error: Could not read source file.\n");
         return 0;
     }
 
     if (!saw_program || !saw_exit || !saw_end) {
         fprintf(stderr,
-                "NTC error: Source must contain PROGRAM, EXIT, and END.\n");
+                "Flix error: Source must contain PROGRAM, EXIT, and END.\n");
         return 0;
     }
 
     for (unsigned i = 0; i < label_count; ++i) {
         if (!labels[i].defined) {
             fprintf(stderr,
-                    "NTC error: Undefined label '%s'.\n",
+                    "Flix error: Undefined label '%s'.\n",
                     labels[i].name);
             return 0;
         }
@@ -1552,14 +1552,14 @@ static int compile_mz(const char *output_path)
 {
     /* Initialize DS to the program's code segment. */
     if (!emit8(0x0E) || !emit8(0x1F)) {
-        fprintf(stderr, "NTC error: Code buffer exhausted.\n");
+        fprintf(stderr, "Flix error: Code buffer exhausted.\n");
         return 0;
     }
 
     for (unsigned i = 0; i < instruction_count; ++i) {
         if (!emit_instruction(&instructions[i])) {
             fprintf(stderr,
-                    "NTC error: Could not generate instruction %u "
+                    "Flix error: Could not generate instruction %u "
                     "(opcode %d, code size %u, patches %u).\n",
                     i + 1,
                     (int)instructions[i].op,
@@ -1575,7 +1575,7 @@ static int compile_mz(const char *output_path)
 
         if (patch->label_index >= label_count ||
             !labels[patch->label_index].defined) {
-            fprintf(stderr, "NTC internal error: Invalid jump target.\n");
+            fprintf(stderr, "Flix internal error: Invalid jump target.\n");
             return 0;
         }
 
@@ -1585,7 +1585,7 @@ static int compile_mz(const char *output_path)
 
         if (displacement < -32768 || displacement > 32767) {
             fprintf(stderr,
-                    "NTC error: Jump target '%s' is out of range.\n",
+                    "Flix error: Jump target '%s' is out of range.\n",
                     labels[patch->label_index].name);
             return 0;
         }
@@ -1608,7 +1608,7 @@ static int compile_mz(const char *output_path)
      * within one 16-bit segment.
      */
     if (image_size > 65535 || file_size > 65535) {
-        fprintf(stderr, "NTC error: Executable exceeds Build 004 size limits.\n");
+        fprintf(stderr, "Flix error: Executable exceeds Build 004 size limits.\n");
         return 0;
     }
 
@@ -1620,7 +1620,7 @@ static int compile_mz(const char *output_path)
         if (patch->kind == PATCH_VARIABLE) {
             if (patch->index >= variable_count) {
                 fprintf(stderr,
-                        "NTC internal error: Invalid variable reference.\n");
+                        "Flix internal error: Invalid variable reference.\n");
                 return 0;
             }
 
@@ -1628,7 +1628,7 @@ static int compile_mz(const char *output_path)
         } else if (patch->kind == PATCH_INPUT_BUFFER) {
             if (patch->index >= NUMERIC_INPUT_STORAGE_SIZE) {
                 fprintf(stderr,
-                        "NTC internal error: Invalid input buffer reference.\n");
+                        "Flix internal error: Invalid input buffer reference.\n");
                 return 0;
             }
 
@@ -1636,7 +1636,7 @@ static int compile_mz(const char *output_path)
         } else {
             if (patch->index >= string_count) {
                 fprintf(stderr,
-                        "NTC internal error: Invalid string reference.\n");
+                        "Flix internal error: Invalid string reference.\n");
                 return 0;
             }
 
@@ -1647,7 +1647,7 @@ static int compile_mz(const char *output_path)
         }
 
         if (address > 65535 || patch->position + 1 >= code_size) {
-            fprintf(stderr, "NTC internal error: Address out of range.\n");
+            fprintf(stderr, "Flix internal error: Address out of range.\n");
             return 0;
         }
 
@@ -1693,7 +1693,7 @@ static int compile_mz(const char *output_path)
     }
 
     if (offset != image_size) {
-        fprintf(stderr, "NTC internal error: Image size mismatch.\n");
+        fprintf(stderr, "Flix internal error: Image size mismatch.\n");
         free(image);
         return 0;
     }
@@ -1733,12 +1733,12 @@ static int compile_mz(const char *output_path)
     free(image);
 
     if (!ok) {
-        fprintf(stderr, "NTC error: Failed to write executable.\n");
+        fprintf(stderr, "Flix error: Failed to write executable.\n");
         remove(output_path);
         return 0;
     }
 
-    printf("NTC Build 004: Created %s\n", output_path);
+    printf("Flix 0.2: Created %s\n", output_path);
     printf("Variables: %u\n", variable_count);
     printf("Instructions: %u\n", instruction_count);
     printf("Code: %u bytes; data: %u bytes\n",
@@ -1754,7 +1754,7 @@ static int compile_mz(const char *output_path)
 int main(int argc, char **argv)
 {
     if (argc != 3) {
-        fprintf(stderr, "NTC - Neptune Code Compiler, Build 004\n");
+        fprintf(stderr, "Flix - Neptune Code Compiler, Build 004\n");
         fprintf(stderr, "Usage: ntc <source.ntc> <output.exe>\n");
         return 1;
     }
