@@ -1,7 +1,6 @@
 PROGRAM Hello
 
-PRINT "Hello from NTC!"
-PRINT "Welcome to Neptune Code."
+PRINT "Hello from Flix!"
 
 EXIT 0
 END
